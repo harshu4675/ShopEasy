@@ -9,6 +9,8 @@ dotenv.config();
 const returnRoutes = require("./routes/returnRoutes");
 const paymentRoutes = require("./routes/payment");
 
+const sitemapRoutes = require("./routes/sitemap");
+
 const app = express();
 
 // Connect to database
@@ -55,6 +57,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/", sitemapRoutes);
 app.use("/api/returns", returnRoutes);
 // ==================== ROUTES ====================
 
