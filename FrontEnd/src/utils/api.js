@@ -1,9 +1,7 @@
 import axios from "axios";
 
 // API Base URL - Fix for Vite
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://shopeasy-ecommerce-app.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 console.log("API URL:", API_URL);
 // Debug log
 console.log("🔧 API Configuration:", {

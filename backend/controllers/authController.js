@@ -16,6 +16,45 @@ const getCookieOptions = (rememberMe = false) => ({
   maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
 });
 
+// @desc    Check if phone number is available
+// @route   GET /api/auth/check-phone/:phone
+// @access  Public
+exports.checkPhone = async (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    console.log("📞 Checking phone availability:", phone);
+
+    // Validate phone format
+    if (!/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        available: false,
+        message: "Invalid phone number format",
+      });
+    }
+
+    const existingUser = await User.findOne({ phone: phone.trim() });
+
+    console.log("🔍 Phone check result:", existingUser ? "Taken" : "Available");
+
+    res.status(200).json({
+      success: true,
+      available: !existingUser,
+      message: existingUser
+        ? "Phone number already registered"
+        : "Phone number available",
+    });
+  } catch (error) {
+    console.error("❌ Check phone error:", error);
+    res.status(500).json({
+      success: false,
+      available: false,
+      message: "Error checking phone number",
+    });
+  }
+};
+
 // @desc    Register user & send OTP
 // @route   POST /api/auth/register
 // @access  Public
@@ -23,7 +62,9 @@ exports.register = async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
 
-    // Check if user already exists
+    console.log("📥 Registration request:", { name, email, phone });
+
+    // ✅ Check if email already exists
     let user = await User.findOne({ email });
 
     if (user) {
@@ -31,12 +72,13 @@ exports.register = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "Email already registered. Please login.",
+          field: "email",
         });
       }
       // User exists but not verified - resend OTP
       const otp = user.generateEmailVerificationOTP();
       await user.save();
-      await sendEmail(email, "verificationOTP", name, otp);
+      await sendEmail(email, "verificationOTP", user.name, otp);
 
       return res.status(200).json({
         success: true,
@@ -45,13 +87,30 @@ exports.register = async (req, res) => {
       });
     }
 
+    // ✅ Check if phone already exists (IMPROVED)
+    if (phone && phone.trim() !== "") {
+      const existingPhone = await User.findOne({ phone: phone.trim() });
+      console.log("📞 Phone check result:", existingPhone);
+
+      if (existingPhone) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This phone number is already registered with another account.",
+          field: "phone",
+        });
+      }
+    }
+
     // Create new user
     user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
       password,
-      phone,
+      phone: phone ? phone.trim() : undefined,
     });
+
+    console.log("✅ User created:", user._id);
 
     // Generate and send OTP
     const otp = user.generateEmailVerificationOTP();
@@ -65,7 +124,34 @@ exports.register = async (req, res) => {
       data: { email, requiresVerification: true },
     });
   } catch (error) {
-    console.error("Register error:", error);
+    console.error("❌ Register error:", error);
+
+    // ✅ Handle MongoDB duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const message =
+        field === "phone"
+          ? "This phone number is already registered with another account."
+          : field === "email"
+            ? "This email is already registered. Please login."
+            : "This value is already in use.";
+
+      return res.status(400).json({
+        success: false,
+        message,
+        field,
+      });
+    }
+
+    // ✅ Handle validation errors
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages[0] || "Validation failed",
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: error.message || "Registration failed",

@@ -11,21 +11,33 @@ const {
   refreshToken,
   logout,
   getMe,
+  checkPhone, // 🆕 Added
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 
-// Public routes
+// ==================== PUBLIC ROUTES ====================
+
+// 🆕 Phone Availability Check (must be before other routes)
+router.get("/check-phone/:phone", checkPhone);
+
+// Registration & Verification
 router.post("/register", register);
 router.post("/verify-email", verifyEmail);
 router.post("/resend-otp", resendOTP);
+
+// Login & Authentication
 router.post("/login", login);
+router.post("/refresh-token", refreshToken);
+
+// Password Reset
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-reset-otp", verifyResetOTP);
 router.post("/reset-password", resetPassword);
-router.post("/refresh-token", refreshToken);
 
-// Protected routes
-router.post("/logout", protect, logout);
+// ==================== PROTECTED ROUTES ====================
+
+// User Profile & Logout
 router.get("/me", protect, getMe);
+router.post("/logout", protect, logout);
 
 module.exports = router;

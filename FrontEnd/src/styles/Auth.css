@@ -718,3 +718,109 @@
 .Toastify__toast--info {
   background: #667eea !important;
 }
+/* ==================== Phone Validation Styles ==================== */
+
+/* Phone input error state */
+.input-icon.error {
+  border-color: #ef4444 !important;
+}
+
+.input-icon.error input {
+  border-color: #ef4444 !important;
+}
+
+/* Phone input success state */
+.input-icon.success {
+  border-color: #10b981 !important;
+}
+
+.input-icon.success input {
+  border-color: #10b981 !important;
+}
+
+/* Validation status icon (✓ or ✗) */
+.input-status {
+  position: absolute;
+  right: 50px; /* Space for toggle password button */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+.input-status.success {
+  color: #10b981;
+}
+
+.input-status.error {
+  color: #ef4444;
+}
+
+/* Error message text */
+.error-text {
+  display: block;
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 6px;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Success message text */
+.success-text {
+  display: block;
+  color: #10b981;
+  font-size: 13px;
+  margin-top: 6px;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Required field indicator */
+.required {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* Button disabled state enhancement */
+.btn-block:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Loading spinner in input (for phone check) */
+.input-icon .input-status:not(.success):not(.error) {
+  color: #667eea;
+  animation: spin 1s linear infinite;
+}
+
+/* Smooth transitions for validation states */
+.input-icon input,
+.input-icon {
+  transition: all 0.3s ease;
+}
+
+/* Focus state with validation */
+.input-icon.error input:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.input-icon.success input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}

@@ -39,6 +39,8 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
+      unique: true,
+      sparse: true,
       match: [/^[0-9]{10}$/, "Please provide a valid 10-digit phone number"],
     },
     password: {
@@ -121,5 +123,51 @@ userSchema.methods.generatePasswordResetOTP = function () {
   this.passwordResetExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
   return otp;
 };
+
+// 🆕 Check if account is locked
+userSchema.virtual("isLocked").get(function () {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
+});
+
+// 🆕 Increment login attempts
+userSchema.methods.incrementLoginAttempts = function () {
+  // If lock has expired, reset attempts
+  if (this.lockUntil && this.lockUntil < Date.now()) {
+    return this.updateOne({
+      $set: { loginAttempts: 1 },
+      $unset: { lockUntil: 1 },
+    });
+  }
+
+  // Increment attempts
+  const updates = { $inc: { loginAttempts: 1 } };
+
+  // Lock account after 5 failed attempts
+  const needsLock = this.loginAttempts + 1 >= 5;
+  if (needsLock) {
+    updates.$set = { lockUntil: Date.now() + 15 * 60 * 1000 }; // 15 minutes
+  }
+
+  return this.updateOne(updates);
+};
+
+// 🆕 Reset login attempts
+userSchema.methods.resetLoginAttempts = function () {
+  return this.updateOne({
+    $set: { loginAttempts: 0 },
+    $unset: { lockUntil: 1 },
+  });
+};
+
+// 🆕 Clean expired refresh tokens
+userSchema.methods.cleanExpiredTokens = function () {
+  this.refreshTokens = this.refreshTokens.filter(
+    (token) => token.expiresAt > Date.now(),
+  );
+};
+
+// 🆕 Create indexes for better performance
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ email: 1 }, { unique: true });
 
 module.exports = mongoose.model("User", userSchema);
