@@ -6,12 +6,12 @@ import React, {
   useCallback,
 } from "react";
 import { api } from "../utils/api";
-import { AuthContext } from "./AuthContext";
+import { useAuth } from "./AuthContext"; // ✅ Changed
 
-export const CartContext = createContext();
+export const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth(); // ✅ Changed from useContext(AuthContext)
   const [cartCount, setCartCount] = useState(0);
 
   const fetchCartCount = useCallback(async () => {
@@ -42,9 +42,20 @@ export const CartProvider = ({ children }) => {
     fetchCartCount();
   };
 
-  return (
-    <CartContext.Provider value={{ cartCount, updateCartCount, refreshCart }}>
-      {children}
-    </CartContext.Provider>
-  );
+  const value = {
+    cartCount,
+    updateCartCount,
+    refreshCart,
+  };
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+};
+
+// ✅ Add custom hook
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error("useCart must be used within a CartProvider");
+  }
+  return context;
 };

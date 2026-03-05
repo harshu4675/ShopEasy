@@ -1,12 +1,31 @@
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { sendEmail } = require("../utils/emailService");
-const {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-  hashToken,
-} = require("../utils/jwtUtils");
+
+// ==================== HELPER FUNCTIONS ====================
+
+// Generate Access Token
+const generateAccessToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || "15m",
+  });
+};
+
+// Generate Refresh Token
+const generateRefreshToken = (id, rememberMe = false) => {
+  const expiresIn = rememberMe
+    ? process.env.JWT_REMEMBER_EXPIRE || "30d"
+    : process.env.JWT_REFRESH_EXPIRE || "7d";
+
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn,
+  });
+};
+
+// Hash token
+const hashToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
 
 // Cookie options
 const getCookieOptions = (rememberMe = false) => ({
@@ -16,33 +35,29 @@ const getCookieOptions = (rememberMe = false) => ({
   maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
 });
 
-// @desc    Check if phone number is available
+// ==================== AUTH CONTROLLERS ====================
+
+// @desc    Check phone availability
 // @route   GET /api/auth/check-phone/:phone
-// @access  Public
 exports.checkPhone = async (req, res) => {
   try {
     const { phone } = req.params;
 
-    console.log("📞 Checking phone availability:", phone);
-
-    // Validate phone format
     if (!/^[0-9]{10}$/.test(phone)) {
       return res.status(400).json({
         success: false,
         available: false,
-        message: "Invalid phone number format",
+        message: "Invalid phone number format. Must be 10 digits.",
       });
     }
 
     const existingUser = await User.findOne({ phone: phone.trim() });
 
-    console.log("🔍 Phone check result:", existingUser ? "Taken" : "Available");
-
     res.status(200).json({
       success: true,
       available: !existingUser,
       message: existingUser
-        ? "Phone number already registered"
+        ? "This phone number is already in use"
         : "Phone number available",
     });
   } catch (error) {
@@ -55,95 +70,111 @@ exports.checkPhone = async (req, res) => {
   }
 };
 
-// @desc    Register user & send OTP
+// @desc    Register user
 // @route   POST /api/auth/register
-// @access  Public
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, rememberMe } = req.body;
 
     console.log("📥 Registration request:", { name, email, phone });
 
-    // ✅ Check if email already exists
-    let user = await User.findOne({ email });
-
-    if (user) {
-      if (user.isVerified) {
-        return res.status(400).json({
-          success: false,
-          message: "Email already registered. Please login.",
-          field: "email",
-        });
-      }
-      // User exists but not verified - resend OTP
-      const otp = user.generateEmailVerificationOTP();
-      await user.save();
-      await sendEmail(email, "verificationOTP", user.name, otp);
-
-      return res.status(200).json({
-        success: true,
-        message: "OTP resent to your email",
-        data: { email, requiresVerification: true },
+    if (!name || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, phone number, and password are required",
       });
     }
 
-    // ✅ Check if phone already exists (IMPROVED)
-    if (phone && phone.trim() !== "") {
-      const existingPhone = await User.findOne({ phone: phone.trim() });
-      console.log("📞 Phone check result:", existingPhone);
+    if (!/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid 10-digit phone number",
+        field: "phone",
+      });
+    }
 
-      if (existingPhone) {
+    // Check if phone already exists
+    const existingPhone = await User.findOne({ phone: phone.trim() });
+    if (existingPhone) {
+      return res.status(400).json({
+        success: false,
+        message: "This phone number is already in use. Please login.",
+        field: "phone",
+      });
+    }
+
+    // Check if email already exists
+    if (email && email.trim() !== "") {
+      const existingEmail = await User.findOne({
+        email: email.toLowerCase().trim(),
+      });
+      if (existingEmail) {
         return res.status(400).json({
           success: false,
-          message:
-            "This phone number is already registered with another account.",
-          field: "phone",
+          message: "This email is already registered.",
+          field: "email",
         });
       }
     }
 
-    // Create new user
-    user = await User.create({
+    // Create user
+    const user = await User.create({
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: email ? email.toLowerCase().trim() : undefined,
       password,
-      phone: phone ? phone.trim() : undefined,
+      phone: phone.trim(),
     });
 
     console.log("✅ User created:", user._id);
 
-    // Generate and send OTP
-    const otp = user.generateEmailVerificationOTP();
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id, rememberMe);
+
+    const tokenExpiry = rememberMe
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    user.refreshTokens = [];
+    user.refreshTokens.push({
+      token: hashToken(refreshToken),
+      expiresAt: tokenExpiry,
+      device: req.headers["user-agent"],
+    });
+    user.lastLogin = Date.now();
     await user.save();
 
-    await sendEmail(email, "verificationOTP", name, otp);
+    res.cookie("refreshToken", refreshToken, getCookieOptions(rememberMe));
 
     res.status(201).json({
       success: true,
-      message: "Registration successful. Please verify your email.",
-      data: { email, requiresVerification: true },
+      message: "Registration successful. Welcome!",
+      data: {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+        accessToken,
+      },
     });
   } catch (error) {
     console.error("❌ Register error:", error);
 
-    // ✅ Handle MongoDB duplicate key errors
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       const message =
         field === "phone"
-          ? "This phone number is already registered with another account."
+          ? "This phone number is already in use."
           : field === "email"
-            ? "This email is already registered. Please login."
+            ? "This email is already registered."
             : "This value is already in use.";
 
-      return res.status(400).json({
-        success: false,
-        message,
-        field,
-      });
+      return res.status(400).json({ success: false, message, field });
     }
 
-    // ✅ Handle validation errors
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({
@@ -159,141 +190,32 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Verify email OTP
-// @route   POST /api/auth/verify-email
-// @access  Public
-exports.verifyEmail = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    const hashedOTP = crypto.createHash("sha256").update(otp).digest("hex");
-
-    const user = await User.findOne({
-      email,
-      emailVerificationOTP: hashedOTP,
-      emailVerificationExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired OTP",
-      });
-    }
-
-    // Verify user
-    user.isVerified = true;
-    user.emailVerificationOTP = undefined;
-    user.emailVerificationExpire = undefined;
-    await user.save();
-
-    // Send welcome email
-    await sendEmail(email, "welcomeEmail", user.name);
-
-    // Generate tokens
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
-    // Store refresh token
-    user.refreshTokens.push({
-      token: hashToken(refreshToken),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      device: req.headers["user-agent"],
-    });
-    await user.save();
-
-    // Set cookie
-    res.cookie("refreshToken", refreshToken, getCookieOptions());
-
-    res.status(200).json({
-      success: true,
-      message: "Email verified successfully",
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          avatar: user.avatar,
-          isVerified: user.isVerified,
-        },
-        accessToken,
-      },
-    });
-  } catch (error) {
-    console.error("Verify email error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Verification failed",
-    });
-  }
-};
-
-// @desc    Resend verification OTP
-// @route   POST /api/auth/resend-otp
-// @access  Public
-exports.resendOTP = async (req, res) => {
-  try {
-    const { email, type } = req.body; // type: 'verification' or 'reset'
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    let otp;
-    if (type === "verification") {
-      if (user.isVerified) {
-        return res.status(400).json({
-          success: false,
-          message: "Email already verified",
-        });
-      }
-      otp = user.generateEmailVerificationOTP();
-      await user.save();
-      await sendEmail(email, "verificationOTP", user.name, otp);
-    } else if (type === "reset") {
-      otp = user.generatePasswordResetOTP();
-      await user.save();
-      await sendEmail(email, "passwordResetOTP", user.name, otp);
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "OTP sent successfully",
-    });
-  } catch (error) {
-    console.error("Resend OTP error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to resend OTP",
-    });
-  }
-};
-
 // @desc    Login user
 // @route   POST /api/auth/login
-// @access  Public
 exports.login = async (req, res) => {
   try {
-    const { email, password, rememberMe } = req.body;
+    const { phone, password, rememberMe } = req.body;
 
-    // Find user with password
-    const user = await User.findOne({ email }).select("+password");
+    console.log("📞 Login request for:", phone);
+
+    if (!phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide phone number and password",
+      });
+    }
+
+    const user = await User.findOne({ phone }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid phone number or password",
       });
     }
 
-    // Check if account is locked
-    if (user.isLocked()) {
+    // Check if locked
+    if (user.lockUntil && user.lockUntil > Date.now()) {
       const lockTime = Math.ceil((user.lockUntil - Date.now()) / 60000);
       return res.status(423).json({
         success: false,
@@ -305,52 +227,59 @@ exports.login = async (req, res) => {
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
-      await user.incrementLoginAttempts();
-      const attemptsLeft = 5 - (user.loginAttempts + 1);
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+
+      if (user.loginAttempts >= 5) {
+        user.lockUntil = Date.now() + 15 * 60 * 1000;
+        await user.save();
+        return res.status(423).json({
+          success: false,
+          message:
+            "Account locked for 15 minutes due to too many failed attempts",
+        });
+      }
+
+      await user.save();
+      const attemptsLeft = 5 - user.loginAttempts;
+
       return res.status(401).json({
         success: false,
-        message: `Invalid email or password. ${attemptsLeft > 0 ? `${attemptsLeft} attempts left` : "Account locked for 15 minutes"}`,
+        message: `Invalid phone number or password. ${attemptsLeft} attempts left`,
       });
     }
 
-    // Check if verified
-    if (!user.isVerified) {
-      // Send new OTP
-      const otp = user.generateEmailVerificationOTP();
-      await user.save();
-      await sendEmail(email, "verificationOTP", user.name, otp);
-
-      return res.status(403).json({
-        success: false,
-        message: "Please verify your email first. OTP sent.",
-        data: { email, requiresVerification: true },
-      });
-    }
-
-    // Reset login attempts
-    await user.resetLoginAttempts();
+    // Reset attempts
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    user.lastLogin = Date.now();
 
     // Clean expired tokens
-    user.cleanExpiredTokens();
+    if (user.refreshTokens) {
+      user.refreshTokens = user.refreshTokens.filter(
+        (t) => t.expiresAt > Date.now(),
+      );
+    } else {
+      user.refreshTokens = [];
+    }
 
     // Generate tokens
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id, rememberMe);
 
-    // Calculate expiry
     const tokenExpiry = rememberMe
       ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Store refresh token
     user.refreshTokens.push({
       token: hashToken(refreshToken),
       expiresAt: tokenExpiry,
       device: req.headers["user-agent"],
     });
+
     await user.save();
 
-    // Set cookie
+    console.log("✅ Login successful for:", phone);
+
     res.cookie("refreshToken", refreshToken, getCookieOptions(rememberMe));
 
     res.status(200).json({
@@ -358,19 +287,18 @@ exports.login = async (req, res) => {
       message: "Login successful",
       data: {
         user: {
-          id: user._id,
+          _id: user._id,
           name: user.name,
           email: user.email,
           phone: user.phone,
-          avatar: user.avatar,
-          isVerified: user.isVerified,
+          role: user.role,
         },
         accessToken,
         rememberMe,
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("❌ Login error:", error);
     res.status(500).json({
       success: false,
       message: "Login failed",
@@ -378,141 +306,8 @@ exports.login = async (req, res) => {
   }
 };
 
-// @desc    Forgot password - send OTP
-// @route   POST /api/auth/forgot-password
-// @access  Public
-exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      // Don't reveal if user exists
-      return res.status(200).json({
-        success: true,
-        message: "If the email exists, you will receive an OTP",
-      });
-    }
-
-    // Generate OTP
-    const otp = user.generatePasswordResetOTP();
-    await user.save();
-
-    // Send email
-    await sendEmail(email, "passwordResetOTP", user.name, otp);
-
-    res.status(200).json({
-      success: true,
-      message: "Password reset OTP sent to your email",
-      data: { email },
-    });
-  } catch (error) {
-    console.error("Forgot password error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to process request",
-    });
-  }
-};
-
-// @desc    Verify reset OTP
-// @route   POST /api/auth/verify-reset-otp
-// @access  Public
-exports.verifyResetOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    const hashedOTP = crypto.createHash("sha256").update(otp).digest("hex");
-
-    const user = await User.findOne({
-      email,
-      passwordResetOTP: hashedOTP,
-      passwordResetExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired OTP",
-      });
-    }
-
-    // Generate reset token for password change
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    user.passwordResetOTP = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    user.passwordResetExpire = Date.now() + 5 * 60 * 1000; // 5 minutes
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "OTP verified",
-      data: { resetToken, email },
-    });
-  } catch (error) {
-    console.error("Verify reset OTP error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Verification failed",
-    });
-  }
-};
-
-// @desc    Reset password
-// @route   POST /api/auth/reset-password
-// @access  Public
-exports.resetPassword = async (req, res) => {
-  try {
-    const { email, resetToken, password } = req.body;
-
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-
-    const user = await User.findOne({
-      email,
-      passwordResetOTP: hashedToken,
-      passwordResetExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired reset token",
-      });
-    }
-
-    // Update password
-    user.password = password;
-    user.passwordResetOTP = undefined;
-    user.passwordResetExpire = undefined;
-    // Invalidate all refresh tokens
-    user.refreshTokens = [];
-    await user.save();
-
-    // Send confirmation email
-    await sendEmail(user.email, "passwordChanged", user.name);
-
-    res.status(200).json({
-      success: true,
-      message: "Password reset successful. Please login.",
-    });
-  } catch (error) {
-    console.error("Reset password error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Password reset failed",
-    });
-  }
-};
-
 // @desc    Refresh token
 // @route   POST /api/auth/refresh-token
-// @access  Public
 exports.refreshToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
@@ -520,20 +315,20 @@ exports.refreshToken = async (req, res) => {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: "No refresh token",
+        message: "No refresh token provided",
       });
     }
 
-    // Verify token
-    const decoded = verifyRefreshToken(refreshToken);
-    if (!decoded) {
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch (err) {
       return res.status(401).json({
         success: false,
         message: "Invalid refresh token",
       });
     }
 
-    // Find user and validate token
     const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(401).json({
@@ -543,9 +338,11 @@ exports.refreshToken = async (req, res) => {
     }
 
     const hashedToken = hashToken(refreshToken);
-    const tokenExists = user.refreshTokens.find(
-      (t) => t.token === hashedToken && t.expiresAt > Date.now(),
-    );
+    const tokenExists =
+      user.refreshTokens &&
+      user.refreshTokens.find(
+        (t) => t.token === hashedToken && t.expiresAt > Date.now(),
+      );
 
     if (!tokenExists) {
       return res.status(401).json({
@@ -554,7 +351,6 @@ exports.refreshToken = async (req, res) => {
       });
     }
 
-    // Generate new access token
     const accessToken = generateAccessToken(user._id);
 
     res.status(200).json({
@@ -562,7 +358,7 @@ exports.refreshToken = async (req, res) => {
       data: { accessToken },
     });
   } catch (error) {
-    console.error("Refresh token error:", error);
+    console.error("❌ Refresh token error:", error);
     res.status(500).json({
       success: false,
       message: "Token refresh failed",
@@ -570,14 +366,206 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
+// @desc    Get current user
+// @route   GET /api/auth/me
+exports.getMe = async (req, res) => {
+  try {
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          _id: req.user._id,
+          name: req.user.name,
+          email: req.user.email,
+          phone: req.user.phone,
+          role: req.user.role,
+          addresses: req.user.addresses,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get me error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch user",
+    });
+  }
+};
+
+// @desc    Update profile
+// @route   PUT /api/auth/profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (name) user.name = name;
+    if (email) user.email = email;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
+    });
+  }
+};
+
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide current and new password",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    const user = await User.findById(req.user._id).select("+password");
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
+
+    user.password = newPassword;
+    user.refreshTokens = [];
+    await user.save();
+
+    res.clearCookie("refreshToken");
+
+    res.status(200).json({
+      success: true,
+      message: "Password changed successfully. Please login again.",
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to change password",
+    });
+  }
+};
+
+// @desc    Add address
+// @route   POST /api/auth/address
+exports.addAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (req.body.isDefault) {
+      user.addresses.forEach((addr) => (addr.isDefault = false));
+    }
+
+    user.addresses.push(req.body);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address added successfully",
+      data: { addresses: user.addresses },
+    });
+  } catch (error) {
+    console.error("Add address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to add address",
+    });
+  }
+};
+
+// @desc    Update address
+// @route   PUT /api/auth/address/:id
+exports.updateAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const address = user.addresses.id(req.params.id);
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    if (req.body.isDefault) {
+      user.addresses.forEach((addr) => (addr.isDefault = false));
+    }
+
+    Object.assign(address, req.body);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      data: { addresses: user.addresses },
+    });
+  } catch (error) {
+    console.error("Update address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update address",
+    });
+  }
+};
+
+// @desc    Delete address
+// @route   DELETE /api/auth/address/:id
+exports.deleteAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    user.addresses.pull(req.params.id);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address deleted successfully",
+      data: { addresses: user.addresses },
+    });
+  } catch (error) {
+    console.error("Delete address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete address",
+    });
+  }
+};
+
 // @desc    Logout
 // @route   POST /api/auth/logout
-// @access  Private
 exports.logout = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
 
-    if (refreshToken && req.user) {
+    if (refreshToken) {
       const hashedToken = hashToken(refreshToken);
       await User.findByIdAndUpdate(req.user._id, {
         $pull: { refreshTokens: { token: hashedToken } },
@@ -595,35 +583,6 @@ exports.logout = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Logout failed",
-    });
-  }
-};
-
-// @desc    Get current user
-// @route   GET /api/auth/me
-// @access  Private
-exports.getMe = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          avatar: user.avatar,
-          isVerified: user.isVerified,
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Get me error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch user",
     });
   }
 };

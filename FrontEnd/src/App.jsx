@@ -23,7 +23,6 @@ import Coupons from "./pages/Coupons";
 // Auth Pages
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
 
 // Protected Pages
 import Cart from "./pages/Cart";
@@ -45,7 +44,7 @@ import AllUsers from "./pages/admin/AllUsers";
 import AllReviews from "./pages/admin/AllReviews";
 import ManageCoupons from "./pages/admin/ManageCoupons";
 import DeliveryManagement from "./pages/admin/DeliveryManagement";
-import RefundManagement from "./pages/admin/RefundManagement"; // ✅ ADD THIS
+import RefundManagement from "./pages/admin/RefundManagement";
 
 // Styles
 import "./App.css";
@@ -62,7 +61,7 @@ function App() {
                 <Navbar />
                 <main className="main-content">
                   <Routes>
-                    {/* Public Routes */}
+                    {/* ==================== PUBLIC ROUTES ==================== */}
                     <Route path="/" element={<Home />} />
                     <Route path="/products" element={<ProductListing />} />
                     <Route path="/product/:id" element={<ProductDetails />} />
@@ -71,15 +70,11 @@ function App() {
                     <Route path="/terms" element={<TermsOfService />} />
                     <Route path="/contact" element={<Contact />} />
 
-                    {/* Auth Routes */}
+                    {/* ==================== AUTH ROUTES ==================== */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
-                    <Route
-                      path="/forgot-password"
-                      element={<ForgotPassword />}
-                    />
 
-                    {/* Protected Routes */}
+                    {/* ==================== PROTECTED ROUTES ==================== */}
                     <Route
                       path="/cart"
                       element={
@@ -129,7 +124,7 @@ function App() {
                       }
                     />
 
-                    {/* Admin Routes */}
+                    {/* ==================== ADMIN ROUTES ==================== */}
                     <Route
                       path="/admin/dashboard"
                       element={
@@ -202,7 +197,6 @@ function App() {
                         </AdminRoute>
                       }
                     />
-                    {/* ✅ ADD THIS ROUTE */}
                     <Route
                       path="/admin/refunds"
                       element={
@@ -216,7 +210,7 @@ function App() {
                 <Footer />
               </div>
 
-              {/* Toast Container */}
+              {/* Toast Notifications */}
               <ToastContainer
                 position="top-right"
                 autoClose={3000}

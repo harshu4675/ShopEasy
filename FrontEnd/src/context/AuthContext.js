@@ -1,14 +1,20 @@
-import React, { createContext, useState, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  useContext,
+} from "react";
 import { api } from "../utils/api";
 
-export const AuthContext = createContext();
+// ✅ Initialize with null
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Clear auth data - wrapped in useCallback
   const clearAuth = useCallback(() => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
@@ -16,22 +22,15 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   }, []);
 
-  // Check authentication status - wrapped in useCallback
   const checkAuth = useCallback(async () => {
     const token = localStorage.getItem("accessToken");
     const savedUser = localStorage.getItem("user");
 
     console.log("🔍 Checking Auth...");
-    console.log("Token exists:", !!token);
-    console.log("Saved user:", savedUser ? JSON.parse(savedUser) : null);
 
     if (token && savedUser) {
       try {
-        // Verify token is still valid
         const response = await api.get("/auth/me");
-        console.log("✅ /auth/me response:", response.data);
-
-        // ✅ FIX: Access user correctly from nested structure
         const userData =
           response.data.data?.user || response.data.user || response.data.data;
 
@@ -39,12 +38,10 @@ export const AuthProvider = ({ children }) => {
           setUser(userData);
           setIsAuthenticated(true);
         } else {
-          console.error("❌ No user data in response:", response.data);
           clearAuth();
         }
       } catch (error) {
-        console.log("❌ Token validation failed:", error.response?.data);
-        // Try to refresh token
+        console.log("❌ Token validation failed");
         try {
           const refreshResponse = await api.post("/auth/refresh-token");
           if (refreshResponse.data.success) {
@@ -52,7 +49,6 @@ export const AuthProvider = ({ children }) => {
               "accessToken",
               refreshResponse.data.data.accessToken,
             );
-            // Try getting user again
             const meResponse = await api.get("/auth/me");
             const userData =
               meResponse.data.data?.user ||
@@ -67,7 +63,6 @@ export const AuthProvider = ({ children }) => {
             }
           }
         } catch (refreshError) {
-          console.log("❌ Refresh failed, clearing auth...");
           clearAuth();
         }
       }
@@ -75,30 +70,29 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [clearAuth]);
 
-  // Initialize auth state on app load
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
-  // Register - Step 1: Send OTP
-  const register = async (name, email, password, phone) => {
+  const register = async (name, email, password, phone, rememberMe = false) => {
     const response = await api.post("/auth/register", {
       name,
-      email,
+      email: email || undefined,
       password,
       phone,
+      rememberMe,
     });
-    return response.data;
-  };
-
-  // Verify Email OTP - Step 2
-  const verifyEmail = async (email, otp) => {
-    const response = await api.post("/auth/verify-email", { email, otp });
 
     if (response.data.success && response.data.data) {
       const { user: userData, accessToken } = response.data.data;
+
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("user", JSON.stringify(userData));
+
+      if (rememberMe) {
+        localStorage.setItem("rememberedPhone", phone);
+      }
+
       setUser(userData);
       setIsAuthenticated(true);
     }
@@ -106,16 +100,9 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  // Resend OTP
-  const resendOTP = async (email, type = "verification") => {
-    const response = await api.post("/auth/resend-otp", { email, type });
-    return response.data;
-  };
-
-  // Login
-  const login = async (email, password, rememberMe = false) => {
+  const login = async (phone, password, rememberMe = false) => {
     const response = await api.post("/auth/login", {
-      email,
+      phone,
       password,
       rememberMe,
     });
@@ -126,11 +113,10 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("user", JSON.stringify(userData));
 
-      // Handle remember me
       if (rememberMe) {
-        localStorage.setItem("rememberedEmail", email);
+        localStorage.setItem("rememberedPhone", phone);
       } else {
-        localStorage.removeItem("rememberedEmail");
+        localStorage.removeItem("rememberedPhone");
       }
 
       setUser(userData);
@@ -140,29 +126,6 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  // Forgot Password - Send OTP
-  const forgotPassword = async (email) => {
-    const response = await api.post("/auth/forgot-password", { email });
-    return response.data;
-  };
-
-  // Verify Reset OTP
-  const verifyResetOTP = async (email, otp) => {
-    const response = await api.post("/auth/verify-reset-otp", { email, otp });
-    return response.data;
-  };
-
-  // Reset Password
-  const resetPassword = async (email, resetToken, password) => {
-    const response = await api.post("/auth/reset-password", {
-      email,
-      resetToken,
-      password,
-    });
-    return response.data;
-  };
-
-  // Change Password (when logged in)
   const changePassword = async (currentPassword, newPassword) => {
     const response = await api.put("/auth/change-password", {
       currentPassword,
@@ -171,9 +134,8 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  // Update Profile
   const updateProfile = async (profileData) => {
-    const response = await api.put("/auth/update-profile", profileData);
+    const response = await api.put("/auth/profile", profileData);
 
     if (response.data.success && response.data.data) {
       const updatedUser = response.data.data.user || response.data.data;
@@ -184,7 +146,6 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  // Logout - with clearAuth dependency
   const logout = useCallback(async () => {
     try {
       await api.post("/auth/logout");
@@ -195,52 +156,35 @@ export const AuthProvider = ({ children }) => {
     }
   }, [clearAuth]);
 
-  // Update user in context (for external updates)
   const updateUser = (userData) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  // Get remembered email
-  const getRememberedEmail = () => {
-    return localStorage.getItem("rememberedEmail") || "";
+  const getRememberedPhone = () => {
+    return localStorage.getItem("rememberedPhone") || "";
   };
 
-  // Context value
   const value = {
-    // State
     user,
     loading,
     isAuthenticated,
-
-    // Auth methods
     register,
-    verifyEmail,
-    resendOTP,
     login,
     logout,
-
-    // Password methods
-    forgotPassword,
-    verifyResetOTP,
-    resetPassword,
-    changePassword,
-
-    // Profile methods
+    checkAuth,
     updateProfile,
     updateUser,
-
-    // Utils
-    checkAuth,
-    getRememberedEmail,
+    changePassword,
+    getRememberedPhone,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook for using auth context
+// ✅ Custom hook
 export const useAuth = () => {
-  const context = React.useContext(AuthContext);
+  const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }

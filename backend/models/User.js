@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
 
 const addressSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -29,8 +28,8 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, "Please provide your email"],
       unique: true,
+      sparse: true,
       lowercase: true,
       match: [
         /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
@@ -39,8 +38,8 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
+      required: [true, "Please provide your phone number"],
       unique: true,
-      sparse: true,
       match: [/^[0-9]{10}$/, "Please provide a valid 10-digit phone number"],
     },
     password: {
@@ -59,18 +58,6 @@ const userSchema = new mongoose.Schema(
       default: "user",
     },
     addresses: [addressSchema],
-
-    // Email Verification
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    emailVerificationOTP: String,
-    emailVerificationExpire: Date,
-
-    // Password Reset
-    passwordResetOTP: String,
-    passwordResetExpire: Date,
 
     // Refresh Tokens (for remember me)
     refreshTokens: [refreshTokenSchema],
@@ -105,33 +92,13 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Generate email verification OTP (6 digits)
-userSchema.methods.generateEmailVerificationOTP = function () {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  this.emailVerificationOTP = crypto
-    .createHash("sha256")
-    .update(otp)
-    .digest("hex");
-  this.emailVerificationExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  return otp;
-};
-
-// Generate password reset OTP (6 digits)
-userSchema.methods.generatePasswordResetOTP = function () {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  this.passwordResetOTP = crypto.createHash("sha256").update(otp).digest("hex");
-  this.passwordResetExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  return otp;
-};
-
-// 🆕 Check if account is locked
+// Check if account is locked
 userSchema.virtual("isLocked").get(function () {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
-// 🆕 Increment login attempts
+// Increment login attempts
 userSchema.methods.incrementLoginAttempts = function () {
-  // If lock has expired, reset attempts
   if (this.lockUntil && this.lockUntil < Date.now()) {
     return this.updateOne({
       $set: { loginAttempts: 1 },
@@ -139,10 +106,7 @@ userSchema.methods.incrementLoginAttempts = function () {
     });
   }
 
-  // Increment attempts
   const updates = { $inc: { loginAttempts: 1 } };
-
-  // Lock account after 5 failed attempts
   const needsLock = this.loginAttempts + 1 >= 5;
   if (needsLock) {
     updates.$set = { lockUntil: Date.now() + 15 * 60 * 1000 }; // 15 minutes
@@ -151,7 +115,7 @@ userSchema.methods.incrementLoginAttempts = function () {
   return this.updateOne(updates);
 };
 
-// 🆕 Reset login attempts
+// Reset login attempts
 userSchema.methods.resetLoginAttempts = function () {
   return this.updateOne({
     $set: { loginAttempts: 0 },
@@ -159,15 +123,15 @@ userSchema.methods.resetLoginAttempts = function () {
   });
 };
 
-// 🆕 Clean expired refresh tokens
+// Clean expired refresh tokens
 userSchema.methods.cleanExpiredTokens = function () {
   this.refreshTokens = this.refreshTokens.filter(
     (token) => token.expiresAt > Date.now(),
   );
 };
 
-// 🆕 Create indexes for better performance
-userSchema.index({ phone: 1 }, { unique: true, sparse: true });
-userSchema.index({ email: 1 }, { unique: true });
+// Indexes for better performance
+userSchema.index({ phone: 1 }, { unique: true });
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("User", userSchema);

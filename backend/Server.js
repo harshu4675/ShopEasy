@@ -62,7 +62,8 @@ app.use("/api/returns", returnRoutes);
 // ==================== ROUTES ====================
 
 // Auth Routes (use only one - the updated one with OTP)
-app.use("/api/auth", require("./routes/auth")); // This should be your updated auth.js file
+// Change this line in server.js:
+app.use("/api/auth", require("./routes/auth")); // ✅ Use authRoutes instead// This should be your updated auth.js file
 
 // Other Routes
 app.use("/api/products", require("./routes/products"));

@@ -6,12 +6,12 @@ import React, {
   useCallback,
 } from "react";
 import { api } from "../utils/api";
-import { AuthContext } from "./AuthContext";
+import { useAuth } from "./AuthContext"; // ✅ Changed
 
-export const WishlistContext = createContext();
+export const WishlistContext = createContext(null);
 
 export const WishlistProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth(); // ✅ Changed from useContext(AuthContext)
   const [wishlistCount, setWishlistCount] = useState(0);
 
   const fetchWishlistCount = useCallback(async () => {
@@ -42,11 +42,24 @@ export const WishlistProvider = ({ children }) => {
     fetchWishlistCount();
   };
 
+  const value = {
+    wishlistCount,
+    updateWishlistCount,
+    refreshWishlist,
+  };
+
   return (
-    <WishlistContext.Provider
-      value={{ wishlistCount, updateWishlistCount, refreshWishlist }}
-    >
+    <WishlistContext.Provider value={value}>
       {children}
     </WishlistContext.Provider>
   );
+};
+
+// ✅ Add custom hook
+export const useWishlist = () => {
+  const context = useContext(WishlistContext);
+  if (!context) {
+    throw new Error("useWishlist must be used within a WishlistProvider");
+  }
+  return context;
 };

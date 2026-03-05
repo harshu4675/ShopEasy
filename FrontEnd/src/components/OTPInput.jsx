@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import "../styles/OTPInput.css";
 
-const OTPInput = ({ length = 6, onComplete, onResend, email, loading }) => {
+const OTPInput = ({ length = 6, onComplete, onResend, phone, loading }) => {
+  // ✅ Changed email to phone
   const [otp, setOtp] = useState(new Array(length).fill(""));
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -91,13 +92,20 @@ const OTPInput = ({ length = 6, onComplete, onResend, email, loading }) => {
     }
   };
 
+  // ✅ Format phone for display (mask middle digits)
+  const formatPhone = (phoneNumber) => {
+    if (!phoneNumber || phoneNumber.length !== 10) return phoneNumber;
+    return `${phoneNumber.slice(0, 3)}****${phoneNumber.slice(7)}`;
+  };
+
   return (
     <div className="otp-container">
       <div className="otp-header">
-        <div className="otp-icon">📧</div>
-        <h2>Verify Your Email</h2>
+        {/* ✅ Changed icon and text for phone */}
+        <div className="otp-icon">📱</div>
+        <h2>Verify Your Phone</h2>
         <p>
-          We've sent a 6-digit code to <strong>{email}</strong>
+          We've sent a 6-digit code to <strong>+91 {formatPhone(phone)}</strong>
         </p>
       </div>
 

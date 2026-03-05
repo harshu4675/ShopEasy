@@ -3,17 +3,15 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { showToast } from "../utils/toast";
 import Logo from "../components/Logo";
-import OTPInput from "../components/OTPInput";
 import "../styles/Auth.css";
 
 const Login = () => {
-  const { login, verifyEmail, resendOTP } = useContext(AuthContext);
+  const { login, getRememberedPhone } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [step, setStep] = useState(1); // 1: Login, 2: OTP (if not verified)
   const [formData, setFormData] = useState({
-    email: "",
+    phone: "",
     password: "",
   });
   const [rememberMe, setRememberMe] = useState(false);
@@ -22,27 +20,37 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || "/";
 
-  // Load remembered email
+  // Load remembered phone
   useEffect(() => {
-    const rememberedEmail = localStorage.getItem("rememberedEmail");
-    if (rememberedEmail) {
-      setFormData((prev) => ({ ...prev, email: rememberedEmail }));
+    const rememberedPhone = getRememberedPhone();
+    if (rememberedPhone) {
+      setFormData((prev) => ({ ...prev, phone: rememberedPhone }));
       setRememberMe(true);
     }
-  }, []);
+  }, [getRememberedPhone]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    // Only allow numbers for phone
+    if (name === "phone") {
+      const numericValue = value.replace(/\D/g, "").slice(0, 10);
+      setFormData({ ...formData, [name]: numericValue });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.email || !formData.password) {
+    if (!formData.phone || !formData.password) {
       showToast("Please fill in all fields", "error");
+      return;
+    }
+
+    if (formData.phone.length !== 10) {
+      showToast("Please enter a valid 10-digit phone number", "error");
       return;
     }
 
@@ -50,7 +58,7 @@ const Login = () => {
 
     try {
       const response = await login(
-        formData.email,
+        formData.phone,
         formData.password,
         rememberMe,
       );
@@ -61,45 +69,9 @@ const Login = () => {
       }
     } catch (error) {
       const errorData = error.response?.data;
-
-      // Handle unverified email
-      if (errorData?.data?.requiresVerification) {
-        setStep(2);
-        showToast("Please verify your email. OTP sent! 📧", "info");
-      } else {
-        showToast(errorData?.message || "Login failed", "error");
-      }
+      showToast(errorData?.message || "Login failed", "error");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOTPComplete = async (otp) => {
-    setLoading(true);
-
-    try {
-      const response = await verifyEmail(formData.email, otp);
-
-      if (response.success) {
-        showToast("Email verified! Welcome! 🎉", "success");
-        navigate(from, { replace: true });
-      }
-    } catch (error) {
-      showToast(error.response?.data?.message || "Invalid OTP", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOTP = async () => {
-    try {
-      await resendOTP(formData.email, "verification");
-      showToast("OTP resent successfully! 📧", "success");
-    } catch (error) {
-      showToast(
-        error.response?.data?.message || "Failed to resend OTP",
-        "error",
-      );
     }
   };
 
@@ -156,108 +128,92 @@ const Login = () => {
 
         {/* Auth Card */}
         <div className="auth-card">
-          {step === 1 ? (
-            <>
-              <div className="auth-header">
-                <Logo size="large" />
-                <h1>Welcome Back!</h1>
-                <p>Login to continue shopping</p>
-              </div>
+          <div className="auth-header">
+            <Logo size="large" />
+            <h1>Welcome Back!</h1>
+            <p>Login to continue shopping</p>
+          </div>
 
-              <form onSubmit={handleSubmit} className="auth-form">
-                <div className="form-group">
-                  <label>Email Address</label>
-                  <div className="input-icon">
-                    <span className="icon">📧</span>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="Enter your email"
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Password</label>
-                  <div className="input-icon">
-                    <span className="icon">🔒</span>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      placeholder="Enter your password"
-                      required
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      className="toggle-password"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? "🙈" : "👁️"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="form-options">
-                  <label className="remember-me">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      disabled={loading}
-                    />
-                    <span>Remember me</span>
-                  </label>
-                  <Link to="/forgot-password" className="forgot-password">
-                    Forgot Password?
-                  </Link>
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn btn-primary btn-lg btn-block"
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="form-group">
+              <label>Phone Number</label>
+              <div className="input-icon">
+                <span className="icon">📱</span>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Enter your phone number"
+                  maxLength="10"
+                  required
                   disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <span className="btn-loader"></span>
-                      Logging in...
-                    </>
-                  ) : (
-                    "Login"
-                  )}
-                </button>
-              </form>
+                />
+              </div>
+              {formData.phone && formData.phone.length === 10 && (
+                <span className="success-text" style={{ fontSize: "12px" }}>
+                  ✓ Valid phone number
+                </span>
+              )}
+            </div>
 
-              <p className="auth-footer">
-                Don't have an account?{" "}
-                <Link to="/register">Create Account</Link>
-              </p>
-            </>
-          ) : (
-            <>
-              <button
-                className="back-btn"
-                onClick={() => setStep(1)}
-                disabled={loading}
-              >
-                ← Back to Login
-              </button>
-              <OTPInput
-                length={6}
-                email={formData.email}
-                onComplete={handleOTPComplete}
-                onResend={handleResendOTP}
-                loading={loading}
-              />
-            </>
-          )}
+            <div className="form-group">
+              <label>Password</label>
+              <div className="input-icon">
+                <span className="icon">🔒</span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className="toggle-password"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-options">
+              <label className="remember-me">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loading}
+                />
+                <span>Remember me</span>
+              </label>
+              <Link to="/contact" className="forgot-password">
+                Need Help?
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg btn-block"
+              disabled={loading || formData.phone.length !== 10}
+            >
+              {loading ? (
+                <>
+                  <span className="btn-loader"></span>
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
+            </button>
+          </form>
+
+          <p className="auth-footer">
+            Don't have an account? <Link to="/register">Create Account</Link>
+          </p>
         </div>
       </div>
     </div>
