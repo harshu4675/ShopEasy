@@ -1,14 +1,17 @@
 User-agent: *
+
 Allow: /
 
-# Disallow private pages
+# Block private pages
+
 Disallow: /admin/
 Disallow: /checkout
 Disallow: /cart
-Disallow: /my-orders
 Disallow: /wishlist
+Disallow: /my-orders
 Disallow: /notifications
+Disallow: /return-request
 
-# Sitemap
+# Sitemap location
+
 Sitemap: https://shopeasy-fashionstore.netlify.app/sitemap.xml
-Sitemap: https://your-backend-url.railway.app/sitemap.xml

@@ -22,7 +22,6 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   // Phone validation states
   const [phoneChecking, setPhoneChecking] = useState(false);
@@ -127,7 +126,6 @@ const Register = () => {
         formData.email,
         formData.password,
         formData.phone,
-        rememberMe,
       );
 
       if (response.success) {
@@ -268,7 +266,7 @@ const Register = () => {
             </div>
 
             <div className="form-group">
-              <label>Email Address (Optional)</label>
+              <label>Email Address</label>
               <div className="input-icon">
                 <span className="icon">📧</span>
                 <input
@@ -278,6 +276,7 @@ const Register = () => {
                   onChange={handleChange}
                   placeholder="Enter your email"
                   disabled={loading}
+                  required
                 />
               </div>
             </div>
@@ -343,18 +342,6 @@ const Register = () => {
                 <span className="strength-text">{passwordStrength.text}</span>
               </div>
             )}
-
-            <div className="form-options">
-              <label className="remember-me">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  disabled={loading}
-                />
-                <span>Remember me</span>
-              </label>
-            </div>
 
             <div className="form-options">
               <label className="remember-me">

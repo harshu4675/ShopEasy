@@ -297,6 +297,21 @@ const ProductDetails = () => {
               >
                 ♡ Wishlist
               </button>
+              {/* Share Button */}
+              <button
+                onClick={() => {
+                  const url = window.location.href;
+                  if (navigator.share) {
+                    navigator.share({ title: product.name, url });
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    showToast("Link copied! 📋", "success");
+                  }
+                }}
+                className="btn btn-outline btn-lg"
+              >
+                🔗 Share
+              </button>
             </div>
 
             {/* Features */}
