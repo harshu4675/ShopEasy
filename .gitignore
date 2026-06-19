@@ -17,7 +17,7 @@ yarn-error.log*
 
 # Build Files
 dist/
-build/
+
 FrontEnd/dist/
 backend/dist/
 
