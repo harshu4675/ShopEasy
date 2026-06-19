@@ -59,11 +59,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/", sitemapRoutes);
 app.use("/api/returns", returnRoutes);
-// ==================== ROUTES ====================
 
-// Auth Routes (use only one - the updated one with OTP)
-// Change this line in server.js:
-app.use("/api/auth", require("./routes/auth")); // ✅ Use authRoutes instead// This should be your updated auth.js file
+app.use("/api/auth", require("./routes/auth"));
 
 // Other Routes
 app.use("/api/products", require("./routes/products"));
@@ -145,24 +142,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log("\n========== ShopEasy Server ==========");
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(
-    `🌐 Frontend URL: ${process.env.FRONTEND_URL || "http://localhost:5000"}`,
-  );
-  console.log(
-    `📧 Email service: ${process.env.EMAIL_USER ? `✅ ${process.env.EMAIL_USER}` : "❌ Not configured"}`,
-  );
-  console.log(
-    `💳 Razorpay: ${process.env.RAZORPAY_KEY_ID ? "✅ Configured" : "❌ Not configured"}`,
-  );
-  console.log(
-    `🗄️  Database: ${process.env.MONGODB_URI ? "✅ Connected" : "❌ Not configured"}`,
-  );
-  console.log("=====================================\n");
-});
+app.listen(PORT, () => {});
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {

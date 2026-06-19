@@ -48,7 +48,7 @@ const returnSchema = new mongoose.Schema({
     ],
   },
   additionalComments: String,
-  images: [String], // Return product images uploaded by user
+  images: [String],
   returnStatus: {
     type: String,
     enum: [

@@ -5,7 +5,6 @@ const Product = require("../models/Product");
 const Coupon = require("../models/Coupon");
 const auth = require("../middleware/auth");
 
-// ✅ Helper function to clean cart (remove deleted products)
 const cleanCart = async (cart) => {
   const validItems = [];
 
@@ -34,7 +33,6 @@ router.get("/", auth, async (req, res) => {
     if (!cart) {
       cart = await Cart.create({ user: req.user._id, items: [] });
     } else {
-      // ✅ Clean cart - remove items with deleted products
       cart = await cleanCart(cart);
     }
 

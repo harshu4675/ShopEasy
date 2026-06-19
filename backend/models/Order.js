@@ -28,7 +28,6 @@ const deliveryUpdateSchema = new mongoose.Schema({
   },
 });
 
-// ✅ NEW: Refund Bank Details Schema
 const refundBankDetailsSchema = new mongoose.Schema({
   accountHolderName: {
     type: String,
@@ -76,7 +75,6 @@ const orderSchema = new mongoose.Schema(
       enum: ["COD", "Razorpay", "UPI", "Card"],
     },
 
-    // ✅ Payment tracking fields
     razorpayPaymentId: String,
     razorpayOrderId: String,
 
@@ -100,8 +98,6 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "Placed",
     },
-
-    // ✅ NEW: Refund tracking
     refundDetails: {
       bankDetails: refundBankDetailsSchema,
       refundAmount: Number,
@@ -114,7 +110,7 @@ const orderSchema = new mongoose.Schema(
     deliveryUpdates: [deliveryUpdateSchema],
     expectedDelivery: Date,
     deliveredAt: Date,
-    cancelledAt: Date, // ✅ NEW
+    cancelledAt: Date,
 
     subtotal: {
       type: Number,

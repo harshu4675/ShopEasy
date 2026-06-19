@@ -40,8 +40,6 @@ const getCookieOptions = (rememberMe = false) => ({
 
 // ==================== PUBLIC ROUTES ====================
 
-// ✅ CHECK PHONE AVAILABILITY
-// @route   GET /api/auth/check-phone/:phone
 router.get("/check-phone/:phone", async (req, res) => {
   try {
     const { phone } = req.params;

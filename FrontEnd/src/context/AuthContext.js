@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { api } from "../utils/api";
 
-// ✅ Initialize with null
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
