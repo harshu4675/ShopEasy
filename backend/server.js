@@ -18,7 +18,7 @@ connectDB();
 
 // ==================== CORS CONFIGURATION ====================
 const allowedOrigins = [
-  "https://shopeasy-fashionstore.netlify.app",
+  "https://shopeasy-fashionstore2.netlify.app",
   "http://localhost:5000",
   "http://localhost:3000",
   "http://127.0.0.1:5000",
