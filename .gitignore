@@ -47,6 +47,6 @@ vite.svg
 *.temp
 
 # Package Locks (Optional - keep if working in a team)
-# package-lock.json
+package-lock.json
 # yarn.lock
 # pnpm-lock.yaml

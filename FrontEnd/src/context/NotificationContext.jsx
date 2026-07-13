@@ -6,12 +6,12 @@ import React, {
   useCallback,
 } from "react";
 import { api } from "../utils/api";
-import { useAuth } from "./AuthContext"; // ✅ Changed
+import { useAuth } from "./AuthContext";
 
 export const NotificationContext = createContext(null);
 
 export const NotificationProvider = ({ children }) => {
-  const { user } = useAuth(); // ✅ Changed from useContext(AuthContext)
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -21,12 +21,10 @@ export const NotificationProvider = ({ children }) => {
       setUnreadCount(0);
       return;
     }
-
     try {
       const response = await api.get("/notifications");
       setNotifications(response.data);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
+    } catch {
       setNotifications([]);
     }
   }, [user]);
@@ -36,12 +34,10 @@ export const NotificationProvider = ({ children }) => {
       setUnreadCount(0);
       return;
     }
-
     try {
       const response = await api.get("/notifications/unread-count");
       setUnreadCount(response.data.count);
-    } catch (error) {
-      console.error("Error fetching unread count:", error);
+    } catch {
       setUnreadCount(0);
     }
   }, [user]);
@@ -50,7 +46,6 @@ export const NotificationProvider = ({ children }) => {
     if (user) {
       fetchNotifications();
       fetchUnreadCount();
-
       const interval = setInterval(fetchUnreadCount, 30000);
       return () => clearInterval(interval);
     } else {
@@ -66,9 +61,7 @@ export const NotificationProvider = ({ children }) => {
         prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error("Error marking as read:", error);
-    }
+    } catch {}
   };
 
   const markAllAsRead = async () => {
@@ -76,33 +69,29 @@ export const NotificationProvider = ({ children }) => {
       await api.put("/notifications/read-all");
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch (error) {
-      console.error("Error marking all as read:", error);
-    }
-  };
-
-  const value = {
-    notifications,
-    unreadCount,
-    fetchNotifications,
-    markAsRead,
-    markAllAsRead,
+    } catch {}
   };
 
   return (
-    <NotificationContext.Provider value={value}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+      }}
+    >
       {children}
     </NotificationContext.Provider>
   );
 };
 
-// ✅ Add custom hook
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
-  if (!context) {
+  if (!context)
     throw new Error(
       "useNotifications must be used within a NotificationProvider",
     );
-  }
   return context;
 };

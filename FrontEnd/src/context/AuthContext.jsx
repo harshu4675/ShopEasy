@@ -25,8 +25,6 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem("accessToken");
     const savedUser = localStorage.getItem("user");
 
-    console.log("🔍 Checking Auth...");
-
     if (token && savedUser) {
       try {
         const response = await api.get("/auth/me");
@@ -40,7 +38,6 @@ export const AuthProvider = ({ children }) => {
           clearAuth();
         }
       } catch (error) {
-        console.log("❌ Token validation failed");
         try {
           const refreshResponse = await api.post("/auth/refresh-token");
           if (refreshResponse.data.success) {
@@ -61,7 +58,7 @@ export const AuthProvider = ({ children }) => {
               clearAuth();
             }
           }
-        } catch (refreshError) {
+        } catch {
           clearAuth();
         }
       }
@@ -84,14 +81,9 @@ export const AuthProvider = ({ children }) => {
 
     if (response.data.success && response.data.data) {
       const { user: userData, accessToken } = response.data.data;
-
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("user", JSON.stringify(userData));
-
-      if (rememberMe) {
-        localStorage.setItem("rememberedPhone", phone);
-      }
-
+      if (rememberMe) localStorage.setItem("rememberedPhone", phone);
       setUser(userData);
       setIsAuthenticated(true);
     }
@@ -108,16 +100,10 @@ export const AuthProvider = ({ children }) => {
 
     if (response.data.success && response.data.data) {
       const { user: userData, accessToken } = response.data.data;
-
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("user", JSON.stringify(userData));
-
-      if (rememberMe) {
-        localStorage.setItem("rememberedPhone", phone);
-      } else {
-        localStorage.removeItem("rememberedPhone");
-      }
-
+      if (rememberMe) localStorage.setItem("rememberedPhone", phone);
+      else localStorage.removeItem("rememberedPhone");
       setUser(userData);
       setIsAuthenticated(true);
     }
@@ -135,21 +121,18 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     const response = await api.put("/auth/profile", profileData);
-
     if (response.data.success && response.data.data) {
       const updatedUser = response.data.data.user || response.data.data;
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }
-
     return response.data;
   };
 
   const logout = useCallback(async () => {
     try {
       await api.post("/auth/logout");
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch {
     } finally {
       clearAuth();
     }
@@ -160,32 +143,32 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  const getRememberedPhone = () => {
-    return localStorage.getItem("rememberedPhone") || "";
-  };
+  const getRememberedPhone = () =>
+    localStorage.getItem("rememberedPhone") || "";
 
-  const value = {
-    user,
-    loading,
-    isAuthenticated,
-    register,
-    login,
-    logout,
-    checkAuth,
-    updateProfile,
-    updateUser,
-    changePassword,
-    getRememberedPhone,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isAuthenticated,
+        register,
+        login,
+        logout,
+        checkAuth,
+        updateProfile,
+        updateUser,
+        changePassword,
+        getRememberedPhone,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// ✅ Custom hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };

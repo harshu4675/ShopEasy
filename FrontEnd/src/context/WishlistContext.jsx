@@ -6,12 +6,12 @@ import React, {
   useCallback,
 } from "react";
 import { api } from "../utils/api";
-import { useAuth } from "./AuthContext"; // ✅ Changed
+import { useAuth } from "./AuthContext";
 
 export const WishlistContext = createContext(null);
 
 export const WishlistProvider = ({ children }) => {
-  const { user } = useAuth(); // ✅ Changed from useContext(AuthContext)
+  const { user } = useAuth();
   const [wishlistCount, setWishlistCount] = useState(0);
 
   const fetchWishlistCount = useCallback(async () => {
@@ -19,13 +19,10 @@ export const WishlistProvider = ({ children }) => {
       setWishlistCount(0);
       return;
     }
-
     try {
       const response = await api.get("/wishlist");
-      const count = response.data?.products?.length || 0;
-      setWishlistCount(count);
-    } catch (error) {
-      console.error("Error fetching wishlist count:", error);
+      setWishlistCount(response.data?.products?.length || 0);
+    } catch {
       setWishlistCount(0);
     }
   }, [user]);
@@ -34,32 +31,21 @@ export const WishlistProvider = ({ children }) => {
     fetchWishlistCount();
   }, [fetchWishlistCount]);
 
-  const updateWishlistCount = (count) => {
-    setWishlistCount(count);
-  };
-
-  const refreshWishlist = () => {
-    fetchWishlistCount();
-  };
-
-  const value = {
-    wishlistCount,
-    updateWishlistCount,
-    refreshWishlist,
-  };
+  const updateWishlistCount = (count) => setWishlistCount(count);
+  const refreshWishlist = () => fetchWishlistCount();
 
   return (
-    <WishlistContext.Provider value={value}>
+    <WishlistContext.Provider
+      value={{ wishlistCount, updateWishlistCount, refreshWishlist }}
+    >
       {children}
     </WishlistContext.Provider>
   );
 };
 
-// ✅ Add custom hook
 export const useWishlist = () => {
   const context = useContext(WishlistContext);
-  if (!context) {
+  if (!context)
     throw new Error("useWishlist must be used within a WishlistProvider");
-  }
   return context;
 };
