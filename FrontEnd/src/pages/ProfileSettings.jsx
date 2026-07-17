@@ -1,7 +1,6 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { showToast } from "../utils/toast";
-import "../styles/Auth.css";
 
 const ProfileSettings = () => {
   const { user, changePassword } = useContext(AuthContext);
@@ -11,6 +10,18 @@ const ProfileSettings = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    const fontId = "profile-settings-fonts";
+    if (!document.getElementById(fontId)) {
+      const link = document.createElement("link");
+      link.id = fontId;
+      link.rel = "stylesheet";
+      link.href =
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap";
+      document.head.appendChild(link);
+    }
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -33,7 +44,7 @@ const ProfileSettings = () => {
 
     try {
       await changePassword(formData.currentPassword, formData.newPassword);
-      showToast("Password changed successfully!", "success");
+      showToast("Password changed successfully", "success");
       setFormData({
         currentPassword: "",
         newPassword: "",
@@ -51,33 +62,46 @@ const ProfileSettings = () => {
 
   return (
     <div
-      className="container"
-      style={{ maxWidth: "600px", padding: "40px 20px" }}
+      className="mx-auto max-w-[600px] px-5 py-10"
+      style={{ fontFamily: "'Inter', sans-serif" }}
     >
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>Profile Settings</h1>
-          <p>Manage your account settings</p>
-        </div>
-
-        <div style={{ marginBottom: "30px" }}>
-          <h3>Account Information</h3>
-          <p>
-            <strong>Name:</strong> {user?.name}
-          </p>
-          <p>
-            <strong>Phone:</strong> {user?.phone}
-          </p>
-          <p>
-            <strong>Email:</strong> {user?.email || "Not provided"}
+      <div className="flex max-w-[520px] flex-col justify-center rounded-[16px] bg-white p-[50px] shadow-[0_4px_24px_rgba(102,126,234,0.10)] max-[600px]:p-8 max-[400px]:p-5">
+        <div className="mb-9 text-center">
+          <h1 className="mb-2 mt-5 text-[28px] font-bold text-[#1a1a2e] max-[600px]:text-[24px]">
+            Profile Settings
+          </h1>
+          <p className="m-0 text-[15px] text-[#6b7280]">
+            Manage your account settings
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <h3>Change Password</h3>
+        <div className="mb-[30px]">
+          <h3 className="mb-3 text-[17px] font-semibold text-[#1a1a2e]">
+            Account Information
+          </h3>
+          <p className="mb-2 text-[15px] text-[#4b5563]">
+            <strong className="font-semibold text-[#374151]">Name:</strong>{" "}
+            {user?.name}
+          </p>
+          <p className="mb-2 text-[15px] text-[#4b5563]">
+            <strong className="font-semibold text-[#374151]">Phone:</strong>{" "}
+            {user?.phone}
+          </p>
+          <p className="mb-2 text-[15px] text-[#4b5563]">
+            <strong className="font-semibold text-[#374151]">Email:</strong>{" "}
+            {user?.email || "Not provided"}
+          </p>
+        </div>
 
-          <div className="form-group">
-            <label>Current Password</label>
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <h3 className="mb-5 text-[17px] font-semibold text-[#1a1a2e]">
+            Change Password
+          </h3>
+
+          <div className="mb-5">
+            <label className="mb-2 block text-[14px] font-semibold text-[#374151]">
+              Current Password
+            </label>
             <input
               type="password"
               name="currentPassword"
@@ -86,11 +110,14 @@ const ProfileSettings = () => {
               placeholder="Enter current password"
               required
               disabled={loading}
+              className="h-12 w-full rounded-[8px] border border-[#ccc] px-4 text-[16px] text-[#1a1a2e] placeholder-[#9ca3af] outline-none transition-all duration-300 focus:border-[#667eea] focus:shadow-[0_0_0_4px_rgba(102,126,234,0.1)] disabled:cursor-not-allowed disabled:opacity-70 max-[400px]:text-[14px]"
             />
           </div>
 
-          <div className="form-group">
-            <label>New Password</label>
+          <div className="mb-5">
+            <label className="mb-2 block text-[14px] font-semibold text-[#374151]">
+              New Password
+            </label>
             <input
               type="password"
               name="newPassword"
@@ -100,11 +127,14 @@ const ProfileSettings = () => {
               required
               minLength="6"
               disabled={loading}
+              className="h-12 w-full rounded-[8px] border border-[#ccc] px-4 text-[16px] text-[#1a1a2e] placeholder-[#9ca3af] outline-none transition-all duration-300 focus:border-[#667eea] focus:shadow-[0_0_0_4px_rgba(102,126,234,0.1)] disabled:cursor-not-allowed disabled:opacity-70 max-[400px]:text-[14px]"
             />
           </div>
 
-          <div className="form-group">
-            <label>Confirm New Password</label>
+          <div className="mb-5">
+            <label className="mb-2 block text-[14px] font-semibold text-[#374151]">
+              Confirm New Password
+            </label>
             <input
               type="password"
               name="confirmPassword"
@@ -113,16 +143,32 @@ const ProfileSettings = () => {
               placeholder="Confirm new password"
               required
               disabled={loading}
+              className="h-12 w-full rounded-[8px] border border-[#ccc] px-4 text-[16px] text-[#1a1a2e] placeholder-[#9ca3af] outline-none transition-all duration-300 focus:border-[#667eea] focus:shadow-[0_0_0_4px_rgba(102,126,234,0.1)] disabled:cursor-not-allowed disabled:opacity-70 max-[400px]:text-[14px]"
             />
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary btn-block"
             disabled={loading}
+            className="mt-1 flex w-full cursor-pointer items-center justify-center gap-[10px] rounded-[12px] border-none px-6 py-4 text-[16px] font-semibold text-white shadow-[0_4px_15px_rgba(102,126,234,0.4)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[0_8px_25px_rgba(102,126,234,0.5)] disabled:cursor-not-allowed disabled:opacity-70 disabled:translate-y-0 disabled:shadow-none max-[400px]:py-[14px] max-[400px]:text-[15px]"
+            style={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            }}
           >
+            {loading && (
+              <span
+                className="inline-block h-5 w-5 rounded-full border-2 border-white/30 border-t-white"
+                style={{ animation: "spin-btn 0.8s linear infinite" }}
+              />
+            )}
             {loading ? "Changing Password..." : "Change Password"}
           </button>
+
+          <style>{`
+            @keyframes spin-btn {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
         </form>
       </div>
     </div>

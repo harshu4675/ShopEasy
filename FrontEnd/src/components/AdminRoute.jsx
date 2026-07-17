@@ -1,20 +1,23 @@
 import React, { useContext } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import Loader from "./Loader";
+import AdminLayout from "./AdminLayout";
 
 const AdminRoute = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
+  const location = useLocation();
 
-  if (loading) {
-    return <Loader fullScreen />;
+  if (loading) return null;
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/" />;
+  if (user.role !== "admin") {
+    return <Navigate to="/" replace />;
   }
 
-  return children;
+  return <AdminLayout>{children}</AdminLayout>;
 };
 
 export default AdminRoute;

@@ -1,17 +1,14 @@
 import axios from "axios";
 
-// API Base URL - Fix for Vite
 const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://shopeasy-ecommerce-app.onrender.com/api";
 console.log("API URL:", API_URL);
-// Debug log
-console.log("🔧 API Configuration:", {
+console.log("API Configuration:", {
   baseURL: API_URL,
   env: import.meta.env.MODE,
 });
 
-// Create axios instance
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -20,7 +17,6 @@ export const api = axios.create({
   },
 });
 
-// Flag to prevent multiple refresh requests
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -35,7 +31,6 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("accessToken");
@@ -49,15 +44,12 @@ api.interceptors.request.use(
   },
 );
 
-// Response interceptor - Handle token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If error is 401 and we haven't tried to refresh yet
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't refresh for auth routes
       if (
         originalRequest.url.includes("/auth/login") ||
         originalRequest.url.includes("/auth/register") ||
@@ -67,7 +59,6 @@ api.interceptors.response.use(
       }
 
       if (isRefreshing) {
-        // If already refreshing, queue this request
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -82,9 +73,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Try to refresh token - FIXED: Removed double /api
         const { data } = await axios.post(
-          `${API_URL}/auth/refresh-token`, // ✅ FIXED
+          `${API_URL}/auth/refresh-token`,
           {},
           { withCredentials: true },
         );
@@ -92,19 +82,15 @@ api.interceptors.response.use(
         const newToken = data.data.accessToken;
         localStorage.setItem("accessToken", newToken);
 
-        // Process queued requests
         processQueue(null, newToken);
 
-        // Retry original request
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - logout user
         processQueue(refreshError, null);
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
 
-        // Only redirect if not already on auth pages
         if (
           !window.location.pathname.includes("/login") &&
           !window.location.pathname.includes("/register")
@@ -121,9 +107,7 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-// ==================== API METHODS ====================
 
-// Auth API
 export const authAPI = {
   register: (data) => api.post("/auth/register", data),
   verifyEmail: (data) => api.post("/auth/verify-email", data),
@@ -138,8 +122,22 @@ export const authAPI = {
   updateProfile: (data) => api.put("/auth/update-profile", data),
   changePassword: (data) => api.put("/auth/change-password", data),
 };
-
-// Products API
+export const categoriesAPI = {
+  getAll: (activeOnly = false) =>
+    api.get(`/categories${activeOnly ? "?activeOnly=true" : ""}`),
+  getOne: (idOrSlug) => api.get(`/categories/${idOrSlug}`),
+  create: (data) => api.post("/categories", data),
+  update: (id, data) => api.put(`/categories/${id}`, data),
+  toggle: (id) => api.patch(`/categories/${id}/toggle`),
+  delete: (id) => api.delete(`/categories/${id}`),
+  addSubCategory: (id, data) =>
+    api.post(`/categories/${id}/subcategories`, data),
+  updateSubCategory: (id, subId, data) =>
+    api.put(`/categories/${id}/subcategories/${subId}`, data),
+  deleteSubCategory: (id, subId) =>
+    api.delete(`/categories/${id}/subcategories/${subId}`),
+  seed: () => api.post("/categories/seed"),
+};
 export const productsAPI = {
   getAll: (params) => api.get("/products", { params }),
   getById: (id) => api.get(`/products/${id}`),
@@ -148,7 +146,6 @@ export const productsAPI = {
   search: (query) => api.get(`/products/search?q=${query}`),
 };
 
-// Cart API
 export const cartAPI = {
   get: () => api.get("/cart"),
   add: (data) => api.post("/cart", data),
@@ -159,7 +156,6 @@ export const cartAPI = {
   removeCoupon: () => api.delete("/cart/coupon"),
 };
 
-// Wishlist API
 export const wishlistAPI = {
   get: () => api.get("/wishlist"),
   add: (productId) => api.post("/wishlist", { productId }),
@@ -167,7 +163,6 @@ export const wishlistAPI = {
   check: (productId) => api.get(`/wishlist/check/${productId}`),
 };
 
-// Orders API
 export const ordersAPI = {
   create: (data) => api.post("/orders", data),
   getAll: () => api.get("/orders"),
@@ -176,18 +171,15 @@ export const ordersAPI = {
   track: (id) => api.get(`/orders/${id}/track`),
 };
 
-// Returns API
 export const returnsAPI = {
   create: (data) => api.post("/returns", data),
   getMyReturns: () => api.get("/returns/my-returns"),
   getById: (id) => api.get(`/returns/${id}`),
   cancel: (id) => api.delete(`/returns/${id}`),
-  // Admin
   getAll: () => api.get("/returns/admin/all"),
   updateStatus: (id, data) => api.put(`/returns/${id}/status`, data),
 };
 
-// Address API
 export const addressAPI = {
   getAll: () => api.get("/addresses"),
   add: (data) => api.post("/addresses", data),
@@ -196,7 +188,6 @@ export const addressAPI = {
   setDefault: (id) => api.put(`/addresses/${id}/default`),
 };
 
-// Reviews API
 export const reviewsAPI = {
   getByProduct: (productId) => api.get(`/reviews/product/${productId}`),
   add: (data) => api.post("/reviews", data),
@@ -204,9 +195,23 @@ export const reviewsAPI = {
   delete: (id) => api.delete(`/reviews/${id}`),
 };
 
-// ==================== UTILITY FUNCTIONS ====================
+export const bannersAPI = {
+  getActive: () => api.get("/banners/active"),
+  getAll: () => api.get("/banners"),
+  getOne: (id) => api.get(`/banners/${id}`),
+  create: (formData) =>
+    api.post("/banners", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  update: (id, formData) =>
+    api.put(`/banners/${id}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  toggle: (id) => api.patch(`/banners/${id}/toggle`),
+  reorder: (orders) => api.patch("/banners/reorder", { orders }),
+  delete: (id) => api.delete(`/banners/${id}`),
+};
 
-// Format price in INR
 export const formatPrice = (price) => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -216,7 +221,6 @@ export const formatPrice = (price) => {
   }).format(price);
 };
 
-// Format date
 export const formatDate = (date) => {
   return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
@@ -225,7 +229,6 @@ export const formatDate = (date) => {
   }).format(new Date(date));
 };
 
-// Format date with time
 export const formatDateTime = (date) => {
   return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
@@ -236,27 +239,32 @@ export const formatDateTime = (date) => {
   }).format(new Date(date));
 };
 
-// Calculate discount percentage
+export const trendingAPI = {
+  get: (limit = 8) => api.get(`/trending?limit=${limit}`),
+  getBestSellers: (limit = 10, days = 30) =>
+    api.get(`/trending/best-sellers?limit=${limit}&days=${days}`),
+  getAdminAll: () => api.get("/trending/admin/all"),
+  toggle: (productId) => api.patch(`/trending/${productId}/toggle`),
+  reorder: (orders) => api.patch("/trending/reorder", { orders }),
+  recalculateSales: () => api.post("/trending/recalculate-sales"),
+};
 export const calculateDiscount = (originalPrice, salePrice) => {
   if (!originalPrice || !salePrice) return 0;
   return Math.round(((originalPrice - salePrice) / originalPrice) * 100);
 };
 
-// Truncate text
 export const truncateText = (text, maxLength = 100) => {
   if (!text) return "";
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + "...";
 };
 
-// Generate random string
 export const generateId = (length = 8) => {
   return Math.random()
     .toString(36)
     .substring(2, length + 2);
 };
 
-// Debounce function
 export const debounce = (func, wait = 300) => {
   let timeout;
   return (...args) => {
@@ -265,19 +273,16 @@ export const debounce = (func, wait = 300) => {
   };
 };
 
-// Validate email
 export const isValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
-// Validate phone (Indian)
 export const isValidPhone = (phone) => {
   const phoneRegex = /^[6-9]\d{9}$/;
   return phoneRegex.test(phone);
 };
 
-// Validate password strength
 export const getPasswordStrength = (password) => {
   if (!password) return { strength: 0, label: "", color: "" };
 
@@ -301,7 +306,6 @@ export const getPasswordStrength = (password) => {
   return levels[strength];
 };
 
-// Get error message from API error
 export const getErrorMessage = (error) => {
   if (error.response?.data?.message) {
     return error.response.data.message;

@@ -72,6 +72,9 @@ app.use("/api/coupons", require("./routes/coupons"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/payment", paymentRoutes);
+app.use("/api/banners", require("./routes/banners"));
+app.use("/api/trending", require("./routes/trending"));
+app.use("/api/categories", require("./routes/categories"));
 
 // Health check route
 app.get("/api/health", (req, res) => {

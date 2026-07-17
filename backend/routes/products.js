@@ -46,17 +46,28 @@ const uploadToCloudinary = (fileBuffer) => {
 // Get all products with filters
 router.get("/", async (req, res) => {
   try {
-    const { category, search, sort, brand, minPrice, maxPrice, size } =
-      req.query;
+    const {
+      category,
+      subCategory,
+      search,
+      sort,
+      brand,
+      minPrice,
+      maxPrice,
+      size,
+      limit,
+    } = req.query;
     let query = {};
 
     if (category) query.category = category;
+    if (subCategory) query.subCategory = subCategory;
     if (brand) query.brand = { $regex: brand, $options: "i" };
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
         { brand: { $regex: search, $options: "i" } },
+        { subCategory: { $regex: search, $options: "i" } },
       ];
     }
     if (minPrice || maxPrice) {
@@ -86,6 +97,10 @@ router.get("/", async (req, res) => {
         break;
       default:
         products = products.sort({ createdAt: -1 });
+    }
+
+    if (limit) {
+      products = products.limit(Number(limit));
     }
 
     const result = await products;

@@ -8,9 +8,6 @@ const Notification = require("../models/Notification");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 
-// ==================== ADMIN ROUTES (MUST BE FIRST!) ====================
-
-// Get all orders (Admin)
 router.get("/admin/all", auth, admin, async (req, res) => {
   try {
     const { status, paymentStatus, search } = req.query;
@@ -37,15 +34,13 @@ router.get("/admin/all", auth, admin, async (req, res) => {
       .populate("user", "name email phone")
       .sort({ createdAt: -1 });
 
-    console.log(`✅ Admin fetched ${orders.length} orders`);
     res.json(orders);
   } catch (error) {
-    console.error("❌ Get all orders error:", error);
+    console.error("Get all orders error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get order stats (Admin)
 router.get("/admin/stats", auth, admin, async (req, res) => {
   try {
     const totalOrders = await Order.countDocuments();
@@ -63,7 +58,6 @@ router.get("/admin/stats", auth, admin, async (req, res) => {
       orderStatus: "Cancelled",
     });
 
-    // ✅ NEW: Refund stats
     const refundRequested = await Order.countDocuments({
       paymentStatus: "Refund Requested",
     });
@@ -94,12 +88,11 @@ router.get("/admin/stats", auth, admin, async (req, res) => {
       totalRefunded: totalRefunded[0]?.total || 0,
     });
   } catch (error) {
-    console.error("❌ Get order stats error:", error);
+    console.error("Get order stats error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// ✅ NEW: Get refund requests (Admin)
 router.get("/admin/refund-requests", auth, admin, async (req, res) => {
   try {
     const { status } = req.query;
@@ -120,17 +113,13 @@ router.get("/admin/refund-requests", auth, admin, async (req, res) => {
       .populate("user", "name email phone")
       .sort({ "refundDetails.refundInitiatedAt": -1 });
 
-    console.log(`✅ Admin fetched ${refundRequests.length} refund requests`);
     res.json(refundRequests);
   } catch (error) {
-    console.error("❌ Get refund requests error:", error);
+    console.error("Get refund requests error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// ==================== USER ROUTES ====================
-
-// Create order
 router.post("/", auth, async (req, res) => {
   try {
     const {
@@ -148,7 +137,6 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
-    // Check if all products exist and have stock
     for (const item of cart.items) {
       if (!item.product) {
         return res.status(400).json({
@@ -201,7 +189,6 @@ router.post("/", auth, async (req, res) => {
       expectedDelivery.getDate() + 5 + Math.floor(Math.random() * 3),
     );
 
-    // ✅ Determine payment status based on payment method
     let paymentStatus = "Pending";
     if (paymentMethod === "Razorpay" && razorpayPaymentId) {
       paymentStatus = "Paid";
@@ -230,38 +217,31 @@ router.post("/", auth, async (req, res) => {
       ],
     });
 
-    // Reduce stock
     for (let item of cart.items) {
       await Product.findByIdAndUpdate(item.product._id, {
         $inc: { stock: -item.quantity },
       });
     }
 
-    // Clear cart
     cart.items = [];
     cart.appliedCoupon = null;
     await cart.save();
 
-    // Create notification
     await Notification.create({
       user: req.user._id,
       type: "order",
       title: "Order Placed Successfully",
-      message: `Your order #${order.orderId} has been placed successfully. ${paymentStatus === "Paid" ? "Payment received ✓" : "Payment: COD"} Expected delivery by ${expectedDelivery.toLocaleDateString("en-IN")}`,
+      message: `Your order #${order.orderId} has been placed successfully. ${paymentStatus === "Paid" ? "Payment received" : "Payment: COD"} Expected delivery by ${expectedDelivery.toLocaleDateString("en-IN")}`,
       orderId: order._id,
     });
 
-    console.log(
-      `✅ Order created: ${order.orderId} | Payment: ${paymentStatus}`,
-    );
     res.status(201).json(order);
   } catch (error) {
-    console.error("❌ Create order error:", error);
+    console.error("Create order error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get user orders
 router.get("/my-orders", auth, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id }).sort({
@@ -269,12 +249,11 @@ router.get("/my-orders", auth, async (req, res) => {
     });
     res.json(orders);
   } catch (error) {
-    console.error("❌ Get my orders error:", error);
+    console.error("Get my orders error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get single order
 router.get("/:id", auth, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
@@ -295,12 +274,11 @@ router.get("/:id", auth, async (req, res) => {
 
     res.json(order);
   } catch (error) {
-    console.error("❌ Get order error:", error);
+    console.error("Get order error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// ✅ Cancel order (User) - UPDATED
 router.put("/:id/cancel", auth, async (req, res) => {
   try {
     const { cancellationReason } = req.body;
@@ -327,7 +305,6 @@ router.put("/:id/cancel", auth, async (req, res) => {
       return res.status(400).json({ message: "Order is already cancelled" });
     }
 
-    // Check if order was paid
     const wasPaid = order.paymentStatus === "Paid";
 
     order.orderStatus = "Cancelled";
@@ -339,7 +316,6 @@ router.put("/:id/cancel", auth, async (req, res) => {
       timestamp: new Date(),
     });
 
-    // Restore stock
     for (let item of order.items) {
       await Product.findByIdAndUpdate(item.product, {
         $inc: { stock: item.quantity },
@@ -348,7 +324,6 @@ router.put("/:id/cancel", auth, async (req, res) => {
 
     await order.save();
 
-    // Create notification
     let notificationMessage = `Your order #${order.orderId} has been cancelled successfully.`;
     if (wasPaid) {
       notificationMessage +=
@@ -363,23 +338,20 @@ router.put("/:id/cancel", auth, async (req, res) => {
       orderId: order._id,
     });
 
-    console.log(`✅ Order cancelled: ${order.orderId} | Was Paid: ${wasPaid}`);
-
     res.json({
       success: true,
       order,
-      requiresBankDetails: wasPaid, // ✅ Tell frontend if bank details needed
+      requiresBankDetails: wasPaid,
       message: wasPaid
         ? "Order cancelled. Please submit bank details for refund."
         : "Order cancelled successfully.",
     });
   } catch (error) {
-    console.error("❌ Cancel order error:", error);
+    console.error("Cancel order error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// ✅ NEW: Submit bank details for refund
 router.post("/:id/refund-bank-details", auth, async (req, res) => {
   try {
     const {
@@ -391,7 +363,6 @@ router.post("/:id/refund-bank-details", auth, async (req, res) => {
       upiId,
     } = req.body;
 
-    // Validation
     if (!accountHolderName || !accountNumber || !ifscCode) {
       return res.status(400).json({
         message:
@@ -403,7 +374,6 @@ router.post("/:id/refund-bank-details", auth, async (req, res) => {
       return res.status(400).json({ message: "Account numbers do not match" });
     }
 
-    // IFSC validation
     const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
     if (!ifscRegex.test(ifscCode.toUpperCase())) {
       return res.status(400).json({ message: "Invalid IFSC code format" });
@@ -440,7 +410,6 @@ router.post("/:id/refund-bank-details", auth, async (req, res) => {
         .json({ message: "Refund already requested/processed for this order" });
     }
 
-    // Update order with bank details
     order.refundDetails = {
       bankDetails: {
         accountHolderName: accountHolderName.trim(),
@@ -464,16 +433,13 @@ router.post("/:id/refund-bank-details", auth, async (req, res) => {
 
     await order.save();
 
-    // Create notification
     await Notification.create({
       user: req.user._id,
       type: "order",
       title: "Refund Request Submitted",
-      message: `Your refund request for order #${order.orderId} has been submitted. Amount: ₹${order.totalAmount}. We will process it within 5-7 business days.`,
+      message: `Your refund request for order #${order.orderId} has been submitted. Amount: Rs.${order.totalAmount}. We will process it within 5-7 business days.`,
       orderId: order._id,
     });
-
-    console.log(`✅ Refund bank details submitted for order: ${order.orderId}`);
 
     res.json({
       success: true,
@@ -482,12 +448,11 @@ router.post("/:id/refund-bank-details", auth, async (req, res) => {
       order,
     });
   } catch (error) {
-    console.error("❌ Submit refund bank details error:", error);
+    console.error("Submit refund bank details error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// ✅ NEW: Process refund (Admin)
 router.put("/:id/process-refund", auth, admin, async (req, res) => {
   try {
     const { refundTransactionId, refundNotes } = req.body;
@@ -507,7 +472,6 @@ router.put("/:id/process-refund", auth, admin, async (req, res) => {
         .json({ message: "No pending refund request for this order" });
     }
 
-    // Update refund status
     order.paymentStatus = "Refunded";
     order.refundDetails.refundCompletedAt = new Date();
     order.refundDetails.refundTransactionId =
@@ -517,22 +481,19 @@ router.put("/:id/process-refund", auth, admin, async (req, res) => {
 
     order.deliveryUpdates.push({
       status: "Refund Completed",
-      description: `Refund of ₹${order.totalAmount} processed successfully. Transaction ID: ${order.refundDetails.refundTransactionId}`,
+      description: `Refund of Rs.${order.totalAmount} processed successfully. Transaction ID: ${order.refundDetails.refundTransactionId}`,
       timestamp: new Date(),
     });
 
     await order.save();
 
-    // Create notification for user
     await Notification.create({
       user: order.user._id,
       type: "order",
-      title: "Refund Processed ✓",
-      message: `Your refund of ₹${order.totalAmount} for order #${order.orderId} has been processed successfully. Transaction ID: ${order.refundDetails.refundTransactionId}`,
+      title: "Refund Processed",
+      message: `Your refund of Rs.${order.totalAmount} for order #${order.orderId} has been processed successfully. Transaction ID: ${order.refundDetails.refundTransactionId}`,
       orderId: order._id,
     });
-
-    console.log(`✅ Refund processed for order: ${order.orderId}`);
 
     res.json({
       success: true,
@@ -540,12 +501,11 @@ router.put("/:id/process-refund", auth, admin, async (req, res) => {
       order,
     });
   } catch (error) {
-    console.error("❌ Process refund error:", error);
+    console.error("Process refund error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Update order status (Admin)
 router.put("/:id/status", auth, admin, async (req, res) => {
   try {
     const { orderStatus } = req.body;
@@ -585,6 +545,7 @@ router.put("/:id/status", auth, admin, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    const previousStatus = order.orderStatus;
     order.orderStatus = orderStatus;
 
     order.deliveryUpdates.push({
@@ -594,17 +555,34 @@ router.put("/:id/status", auth, admin, async (req, res) => {
       timestamp: new Date(),
     });
 
-    // Handle specific status updates
-    if (orderStatus === "Delivered") {
+    if (orderStatus === "Delivered" && previousStatus !== "Delivered") {
       order.deliveredAt = new Date();
       if (order.paymentMethod === "COD") {
         order.paymentStatus = "Paid";
       }
+
+      await Promise.all(
+        order.items.map((item) =>
+          Product.findByIdAndUpdate(item.product, {
+            $inc: { salesCount: item.quantity },
+          }),
+        ),
+      );
     }
 
-    if (orderStatus === "Cancelled") {
+    if (orderStatus === "Cancelled" && previousStatus !== "Cancelled") {
       order.cancelledAt = new Date();
-      // Restore stock
+
+      if (previousStatus === "Delivered") {
+        await Promise.all(
+          order.items.map((item) =>
+            Product.findByIdAndUpdate(item.product, {
+              $inc: { salesCount: -item.quantity },
+            }),
+          ),
+        );
+      }
+
       for (let item of order.items) {
         await Product.findByIdAndUpdate(item.product, {
           $inc: { stock: item.quantity },
@@ -612,9 +590,18 @@ router.put("/:id/status", auth, admin, async (req, res) => {
       }
     }
 
+    if (orderStatus === "Returned" && previousStatus === "Delivered") {
+      await Promise.all(
+        order.items.map((item) =>
+          Product.findByIdAndUpdate(item.product, {
+            $inc: { salesCount: -item.quantity },
+          }),
+        ),
+      );
+    }
+
     await order.save();
 
-    // Create notification
     try {
       await Notification.create({
         user: order.user._id || order.user,
@@ -627,15 +614,13 @@ router.put("/:id/status", auth, admin, async (req, res) => {
       console.error("Notification error (non-critical):", notifError.message);
     }
 
-    console.log(`✅ Order ${order.orderId} status updated to: ${orderStatus}`);
     res.json(order);
   } catch (error) {
-    console.error("❌ Update order status error:", error);
+    console.error("Update order status error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Update payment status (Admin)
 router.put("/:id/payment-status", auth, admin, async (req, res) => {
   try {
     const { paymentStatus } = req.body;
@@ -671,7 +656,6 @@ router.put("/:id/payment-status", auth, admin, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Create notification
     try {
       await Notification.create({
         user: order.user._id || order.user,
@@ -684,12 +668,9 @@ router.put("/:id/payment-status", auth, admin, async (req, res) => {
       console.error("Notification error (non-critical):", notifError.message);
     }
 
-    console.log(
-      `✅ Order ${order.orderId} payment updated to: ${paymentStatus}`,
-    );
     res.json(order);
   } catch (error) {
-    console.error("❌ Update payment status error:", error);
+    console.error("Update payment status error:", error);
     res.status(500).json({ message: error.message });
   }
 });

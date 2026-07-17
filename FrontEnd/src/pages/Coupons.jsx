@@ -32,7 +32,7 @@ const Coupons = () => {
   return (
     <div
       className="min-h-screen py-10 px-4 sm:px-5"
-      style={{ background: "#f8f9fa", fontFamily: "Poppins, sans-serif" }}
+      style={{ background: "#f8f9fa" }}
     >
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
@@ -83,7 +83,8 @@ const Coupons = () => {
           <div
             className="grid gap-6"
             style={{
-              gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(min(380px, 100%), 1fr))",
             }}
           >
             {coupons.map((coupon) => (
@@ -97,7 +98,7 @@ const Coupons = () => {
         )}
 
         <div
-          className="bg-white rounded-2xl p-8 mt-12"
+          className="bg-white rounded-2xl p-6 sm:p-8 mt-12"
           style={{ boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}
         >
           <div className="flex items-center gap-3 mb-5">

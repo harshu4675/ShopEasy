@@ -47,7 +47,6 @@ const AllReturns = () => {
   };
 
   const handleStatusChange = (returnId, newStatus) => {
-    // If rejecting, ask for reason
     if (newStatus === "Rejected") {
       const reason = prompt("Please enter rejection reason:");
       if (!reason) return;
@@ -63,9 +62,7 @@ const AllReturns = () => {
     updateReturnStatus(
       returnId,
       returns.find((r) => r._id === returnId).returnStatus,
-      {
-        adminNotes: notes,
-      },
+      { adminNotes: notes },
     );
   };
 
@@ -100,13 +97,16 @@ const AllReturns = () => {
   if (loading) return <Loader fullScreen />;
 
   return (
-    <div className="admin-dashboard">
-      <div className="container">
-        <div className="page-header">
-          <h1>All Returns & Refunds ({returns.length})</h1>
+    <div className="min-h-screen">
+      <div className="max-w-[1400px] mx-auto px-5 md:px-4">
+        <div className="flex justify-between items-center mb-[30px] flex-wrap gap-5 md:flex-col md:items-start md:gap-4">
+          <h1 className="text-[28px] font-bold text-dark md:text-[22px]">
+            All Returns & Refunds ({returns.length})
+          </h1>
         </div>
 
-        <div className="filter-tabs">
+        {/* Filter Tabs */}
+        <div className="flex gap-2.5 mb-6 flex-wrap md:overflow-x-auto md:flex-nowrap md:pb-2.5 md:[&::-webkit-scrollbar]:hidden">
           {[
             "all",
             "pending",
@@ -119,7 +119,11 @@ const AllReturns = () => {
           ].map((tab) => (
             <button
               key={tab}
-              className={`filter-tab ${filter === tab ? "active" : ""}`}
+              className={`py-2.5 px-5 border-2 rounded-md font-semibold text-sm cursor-pointer transition-all duration-300 ease-custom whitespace-nowrap md:py-2 md:px-3.5 md:text-[13px] ${
+                filter === tab
+                  ? "bg-primary border-primary text-white"
+                  : "border-gray-200 bg-white hover:border-primary hover:text-primary"
+              }`}
               onClick={() => setFilter(tab)}
             >
               {tab
@@ -131,29 +135,37 @@ const AllReturns = () => {
         </div>
 
         {filteredReturns.length === 0 ? (
-          <div className="empty-state">
-            <h3>No returns found</h3>
-            <p>No return requests match the selected filter</p>
+          <div className="text-center py-20 px-5">
+            <h3 className="text-[22px] mb-3 text-gray-700">No returns found</h3>
+            <p className="text-gray-500 mb-6">
+              No return requests match the selected filter
+            </p>
           </div>
         ) : (
-          <div className="returns-admin-list">
+          <div className="flex flex-col gap-5">
             {filteredReturns.map((returnReq) => (
-              <div key={returnReq._id} className="return-admin-card">
+              <div
+                key={returnReq._id}
+                className="bg-white rounded-md p-6 shadow-sm"
+              >
+                {/* Header */}
                 <div
-                  className="return-admin-header"
+                  className="flex justify-between items-start mb-5 pb-5 border-b-2 border-gray-100 cursor-pointer md:flex-col md:gap-4"
                   onClick={() =>
                     setExpandedReturn(
                       expandedReturn === returnReq._id ? null : returnReq._id,
                     )
                   }
                 >
-                  <div className="return-basic-info">
-                    <h3>Return #{returnReq.returnId}</h3>
-                    <p className="return-date">
+                  <div>
+                    <h3 className="text-lg m-0 mb-1.5">
+                      Return #{returnReq.returnId}
+                    </h3>
+                    <p className="text-[13px] text-gray-500 m-0">
                       {formatDate(returnReq.createdAt)}
                     </p>
                     <span
-                      className="return-status-badge"
+                      className="inline-block py-1 px-3 rounded-[50px] text-xs font-semibold text-white mt-2"
                       style={{
                         backgroundColor: getStatusColor(returnReq.returnStatus),
                       }}
@@ -161,104 +173,139 @@ const AllReturns = () => {
                       {returnReq.returnStatus}
                     </span>
                   </div>
-                  <div className="return-amount">
-                    <span className="amount">
+                  <div className="text-right md:text-left">
+                    <span className="text-[22px] font-bold text-gray-800 block mb-1.5">
                       Refund: {formatPrice(returnReq.refundAmount)}
                     </span>
-                    <p className="order-ref">
+                    <p className="text-[13px] text-gray-500 m-0">
                       Order: #{returnReq.order?.orderId || "N/A"}
                     </p>
                   </div>
                 </div>
 
-                <div className="return-customer">
-                  <p>
+                {/* Customer */}
+                <div className="mb-4 text-sm text-gray-600">
+                  <p className="my-1">
                     <strong>👤 {returnReq.user?.name || "N/A"}</strong>
                   </p>
-                  <p>📧 {returnReq.user?.email || "N/A"}</p>
-                  <p>📱 {returnReq.pickupAddress?.phone || "N/A"}</p>
+                  <p className="my-1">📧 {returnReq.user?.email || "N/A"}</p>
+                  <p className="my-1">
+                    📱 {returnReq.pickupAddress?.phone || "N/A"}
+                  </p>
                 </div>
 
-                <div className="return-reason-preview">
-                  <p>
+                {/* Reason */}
+                <div className="mb-4">
+                  <p className="text-sm">
                     <strong>Reason:</strong> {returnReq.returnReason}
                   </p>
                   {returnReq.additionalComments && (
-                    <p className="comments">{returnReq.additionalComments}</p>
+                    <p className="text-sm text-gray-500">
+                      {returnReq.additionalComments}
+                    </p>
                   )}
                 </div>
 
-                <div className="return-items-preview">
+                {/* Items Preview */}
+                <div className="flex gap-2 mb-5 flex-wrap">
                   {returnReq.items.slice(0, 4).map((item, index) => (
-                    <div key={index} className="item-mini">
-                      <img src={item.image} alt={item.name} />
-                      <span className="item-qty-badge">{item.quantity}</span>
+                    <div
+                      key={index}
+                      className="relative w-[50px] h-[50px] rounded-sm overflow-hidden"
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute -top-1 -right-1 bg-primary text-white w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center">
+                        {item.quantity}
+                      </span>
                     </div>
                   ))}
                   {returnReq.items.length > 4 && (
-                    <div className="item-mini more-items">
+                    <div className="w-[50px] h-[50px] flex items-center justify-center bg-gray-200 text-gray-600 text-xs font-semibold rounded-sm">
                       +{returnReq.items.length - 4}
                     </div>
                   )}
                 </div>
 
+                {/* Expanded Details */}
                 {expandedReturn === returnReq._id && (
-                  <div className="return-expanded-details">
-                    <div className="return-items-full">
-                      <h4>Return Items</h4>
+                  <div className="border-t-2 border-gray-100 pt-5">
+                    {/* Full Items */}
+                    <div className="mb-5">
+                      <h4 className="mb-3">Return Items</h4>
                       {returnReq.items.map((item, index) => (
-                        <div key={index} className="return-item-detail">
-                          <img src={item.image} alt={item.name} />
-                          <div className="item-info">
-                            <p className="item-name">{item.name}</p>
-                            <p className="item-options">
+                        <div
+                          key={index}
+                          className="flex gap-4 p-4 bg-gray-100 rounded-lg items-center mb-3"
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-20 h-20 object-cover rounded-lg"
+                          />
+                          <div className="flex-1">
+                            <p className="font-semibold m-0 mb-1">
+                              {item.name}
+                            </p>
+                            <p className="text-sm text-gray-500 my-1">
                               {item.size && `Size: ${item.size}`}
                               {item.size && item.color && " | "}
                               {item.color && `Color: ${item.color}`}
                             </p>
-                            <p className="item-qty">Qty: {item.quantity}</p>
-                            <p className="item-reason-detail">
+                            <p className="text-sm text-gray-600 my-1">
+                              Qty: {item.quantity}
+                            </p>
+                            <p className="text-sm my-1">
                               <strong>Reason:</strong> {item.reason}
                             </p>
                           </div>
-                          <p className="item-price">
+                          <p className="font-bold text-gray-800">
                             {formatPrice(item.price * item.quantity)}
                           </p>
                         </div>
                       ))}
                     </div>
 
-                    <div className="return-details-grid">
-                      <div className="pickup-address">
-                        <h4>📍 Pickup Address</h4>
-                        <p>{returnReq.pickupAddress?.fullName}</p>
-                        <p>{returnReq.pickupAddress?.address}</p>
-                        <p>
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-5 mb-5 md:grid-cols-1">
+                      <div>
+                        <h4 className="mb-3">📍 Pickup Address</h4>
+                        <p className="text-sm my-1">
+                          {returnReq.pickupAddress?.fullName}
+                        </p>
+                        <p className="text-sm my-1">
+                          {returnReq.pickupAddress?.address}
+                        </p>
+                        <p className="text-sm my-1">
                           {returnReq.pickupAddress?.city},{" "}
                           {returnReq.pickupAddress?.state} -{" "}
                           {returnReq.pickupAddress?.pincode}
                         </p>
-                        <p>Phone: {returnReq.pickupAddress?.phone}</p>
+                        <p className="text-sm my-1">
+                          Phone: {returnReq.pickupAddress?.phone}
+                        </p>
                       </div>
-
-                      <div className="refund-method">
-                        <h4>💳 Refund Method</h4>
-                        <p>{returnReq.refundMethod}</p>
+                      <div>
+                        <h4 className="mb-3">💳 Refund Method</h4>
+                        <p className="text-sm">{returnReq.refundMethod}</p>
                         {returnReq.bankDetails && (
-                          <div className="bank-details">
-                            <p>
+                          <div className="mt-2 text-sm">
+                            <p className="my-1">
                               <strong>A/C Holder:</strong>{" "}
                               {returnReq.bankDetails.accountHolderName}
                             </p>
-                            <p>
+                            <p className="my-1">
                               <strong>A/C No:</strong>{" "}
                               {returnReq.bankDetails.accountNumber}
                             </p>
-                            <p>
+                            <p className="my-1">
                               <strong>IFSC:</strong>{" "}
                               {returnReq.bankDetails.ifscCode}
                             </p>
-                            <p>
+                            <p className="my-1">
                               <strong>Bank:</strong>{" "}
                               {returnReq.bankDetails.bankName}
                             </p>
@@ -268,36 +315,41 @@ const AllReturns = () => {
                     </div>
 
                     {returnReq.adminNotes && (
-                      <div className="admin-notes-display">
-                        <h4>📝 Admin Notes</h4>
-                        <p>{returnReq.adminNotes}</p>
+                      <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                        <h4 className="mb-2">📝 Admin Notes</h4>
+                        <p className="text-sm">{returnReq.adminNotes}</p>
                       </div>
                     )}
 
                     {returnReq.rejectionReason && (
-                      <div className="rejection-reason-display">
-                        <h4>❌ Rejection Reason</h4>
-                        <p>{returnReq.rejectionReason}</p>
+                      <div className="bg-red-50 p-4 rounded-lg mb-4">
+                        <h4 className="mb-2">❌ Rejection Reason</h4>
+                        <p className="text-sm">{returnReq.rejectionReason}</p>
                       </div>
                     )}
 
                     {returnReq.timeline && returnReq.timeline.length > 0 && (
-                      <div className="return-timeline">
-                        <h4>📋 Return Timeline</h4>
-                        <div className="timeline">
+                      <div className="mb-4">
+                        <h4 className="mb-3">📋 Return Timeline</h4>
+                        <div className="relative pl-8 timeline-line">
                           {returnReq.timeline.map((update, index) => (
-                            <div key={index} className="timeline-item">
-                              <div className="timeline-dot"></div>
-                              <div className="timeline-content">
-                                <p className="timeline-status">
+                            <div
+                              key={index}
+                              className="relative pb-6 last:pb-0"
+                            >
+                              <div
+                                className={`absolute -left-8 w-3 h-3 rounded-full border-[3px] border-white ${index === 0 ? "bg-[#28a745] shadow-[0_0_0_2px_#28a745]" : "bg-[#007bff] shadow-[0_0_0_2px_#007bff]"}`}
+                              ></div>
+                              <div className="bg-gray-100 py-3 px-4 rounded-lg">
+                                <p className="font-semibold text-gray-800 m-0 mb-1">
                                   {update.status}
                                 </p>
                                 {update.description && (
-                                  <p className="timeline-desc">
+                                  <p className="text-gray-600 text-sm my-1">
                                     {update.description}
                                   </p>
                                 )}
-                                <p className="timeline-time">
+                                <p className="text-gray-400 text-[0.75rem] mt-1 mb-0">
                                   {formatDate(update.timestamp)}
                                 </p>
                               </div>
@@ -309,14 +361,18 @@ const AllReturns = () => {
                   </div>
                 )}
 
-                <div className="return-status-controls">
-                  <div className="status-control">
-                    <label>Return Status:</label>
+                {/* Status Controls */}
+                <div className="flex gap-5 flex-wrap items-end pt-4 border-t-2 border-gray-100 md:flex-col">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-gray-500 uppercase">
+                      Return Status:
+                    </label>
                     <select
                       value={returnReq.returnStatus}
                       onChange={(e) =>
                         handleStatusChange(returnReq._id, e.target.value)
                       }
+                      className="py-2.5 px-4 border-2 border-gray-200 rounded-sm text-sm font-medium cursor-pointer min-w-[180px] focus:outline-none focus:border-primary md:w-full"
                     >
                       <option value="Pending">Pending</option>
                       <option value="Approved">Approved</option>
@@ -329,9 +385,8 @@ const AllReturns = () => {
                       <option value="Refund Completed">Refund Completed</option>
                     </select>
                   </div>
-
                   <button
-                    className="btn btn-secondary btn-sm"
+                    className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-2 border-gray-300 bg-white text-gray-800 rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap hover:border-primary hover:text-primary"
                     onClick={() => addAdminNotes(returnReq._id)}
                   >
                     Add Notes

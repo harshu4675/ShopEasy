@@ -100,10 +100,27 @@ const productSchema = new mongoose.Schema({
   },
   tags: [String],
 
+  salesCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  isTrending: {
+    type: Boolean,
+    default: false,
+  },
+  trendingOrder: {
+    type: Number,
+    default: 0,
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
+
+productSchema.index({ salesCount: -1 });
+productSchema.index({ isTrending: 1, trendingOrder: 1 });
 
 module.exports = mongoose.model("Product", productSchema);
