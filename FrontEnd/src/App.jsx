@@ -18,7 +18,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import ReturnRequest from "./pages/ReturnRequest";
 import Categories from "./pages/Categories";
-
+import ForgotPassword from "./pages/ForgotPassword";
 import Home from "./pages/Home";
 import ProductListing from "./pages/ProductListing";
 import ProductDetails from "./pages/ProductDetails";
@@ -122,7 +122,7 @@ const AppLayout = () => {
           <Route path="/categories" element={<Categories />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route
             path="/cart"
             element={

@@ -70,24 +70,55 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [checkAuth]);
 
-  const register = async (name, email, password, phone, rememberMe = false) => {
-    const response = await api.post("/auth/register", {
+  const sendRegisterOTP = async (
+    name,
+    email,
+    password,
+    phone,
+    rememberMe = false,
+  ) => {
+    const response = await api.post("/auth/send-otp", {
       name,
-      email: email || undefined,
+      email,
       password,
       phone,
       rememberMe,
+      purpose: "register",
+    });
+    return response.data;
+  };
+
+  const verifyRegisterOTP = async (email, otp) => {
+    const response = await api.post("/auth/verify-otp-register", {
+      email,
+      otp,
     });
 
     if (response.data.success && response.data.data) {
       const { user: userData, accessToken } = response.data.data;
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("user", JSON.stringify(userData));
-      if (rememberMe) localStorage.setItem("rememberedPhone", phone);
       setUser(userData);
       setIsAuthenticated(true);
     }
 
+    return response.data;
+  };
+
+  const sendResetOTP = async (email) => {
+    const response = await api.post("/auth/send-otp", {
+      email,
+      purpose: "reset-password",
+    });
+    return response.data;
+  };
+
+  const verifyResetOTP = async (email, otp, newPassword) => {
+    const response = await api.post("/auth/verify-otp-reset", {
+      email,
+      otp,
+      newPassword,
+    });
     return response.data;
   };
 
@@ -152,7 +183,10 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         isAuthenticated,
-        register,
+        sendRegisterOTP,
+        verifyRegisterOTP,
+        sendResetOTP,
+        verifyResetOTP,
         login,
         logout,
         checkAuth,

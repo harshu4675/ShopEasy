@@ -204,7 +204,7 @@ const Login = () => {
 
       <div className="flex w-full items-center justify-center bg-gradient-to-br from-pink-50/40 via-white to-pink-50/40 px-6 py-10 lg:w-1/2 max-md:px-4 max-md:py-6">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex justify-center lg:hidden">
+          <div className="mb-8 flex w-full items-center justify-center lg:hidden">
             <Logo size="large" linkTo={null} />
           </div>
 
@@ -315,10 +315,10 @@ const Login = () => {
                 <span className="text-sm text-gray-700">Remember me</span>
               </label>
               <Link
-                to="/contact"
+                to="/forgot-password"
                 className="text-sm font-semibold text-pink-600 no-underline transition-colors hover:text-pink-700 hover:underline"
               >
-                Need help?
+                Forgot password?
               </Link>
             </div>
 
