@@ -1,25 +1,13 @@
-const nodemailer = require("nodemailer");
-
-const transporter = nodemailer.createTransport({
-  host: process.env.BREVO_SMTP_HOST,
-  port: parseInt(process.env.BREVO_SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.BREVO_SMTP_USER,
-    pass: process.env.BREVO_SMTP_PASS,
-  },
-});
-
-transporter.verify((error) => {
-  if (error) {
-    console.error("Email service error:", error.message);
-  } else {
-    console.log("Email service ready");
-  }
-});
-
 const senderName = process.env.BREVO_SENDER_NAME || "Talish Clothes";
 const senderEmail = process.env.BREVO_SENDER_EMAIL;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+
+if (!BREVO_API_KEY) {
+  console.warn("BREVO_API_KEY not set - emails will fail");
+} else {
+  console.log("Email service ready (Brevo API)");
+}
 
 const buildOTPEmailTemplate = (otp, name, purpose) => {
   const isRegister = purpose === "register";
@@ -93,21 +81,48 @@ const buildOTPEmailTemplate = (otp, name, purpose) => {
 
 const sendOTPEmail = async (to, otp, name = "", purpose = "register") => {
   try {
+    if (!BREVO_API_KEY) {
+      throw new Error("BREVO_API_KEY not configured");
+    }
+
     const subject =
       purpose === "register"
         ? `Verify your email - OTP ${otp}`
         : `Reset your password - OTP ${otp}`;
 
-    const info = await transporter.sendMail({
-      from: `"${senderName}" <${senderEmail}>`,
-      to,
+    const payload = {
+      sender: {
+        name: senderName,
+        email: senderEmail,
+      },
+      to: [{ email: to }],
       subject,
-      html: buildOTPEmailTemplate(otp, name, purpose),
-      text: `Your Talish Clothes verification code is: ${otp}. Valid for 10 minutes. Do not share with anyone.`,
+      htmlContent: buildOTPEmailTemplate(otp, name, purpose),
+      textContent: `Your Talish Clothes verification code is: ${otp}. Valid for 10 minutes. Do not share with anyone.`,
+    };
+
+    const response = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": BREVO_API_KEY,
+      },
+      body: JSON.stringify(payload),
     });
 
-    console.log("OTP email sent:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Brevo API error:", data);
+      return {
+        success: false,
+        error: data.message || "Failed to send email",
+      };
+    }
+
+    console.log("OTP email sent:", data.messageId);
+    return { success: true, messageId: data.messageId };
   } catch (error) {
     console.error("Email send error:", error.message);
     return { success: false, error: error.message };
