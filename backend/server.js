@@ -16,44 +16,49 @@ const app = express();
 // Connect to database
 connectDB();
 
-// ==================== CORS CONFIGURATION ====================
 const allowedOrigins = [
   "https://shopeasy-fashionstore2.netlify.app",
   "http://localhost:5000",
   "http://localhost:3000",
+  "http://localhost:5173",
   "http://127.0.0.1:5000",
   "http://127.0.0.1:3000",
-  "http://localhost:5173",
+  "http://127.0.0.1:5173",
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps, Postman, curl)
       if (!origin) return callback(null, true);
 
-      // Check if origin is in allowed list
       if (allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        // ⚠️ In development, just warn but allow
-        if (process.env.NODE_ENV === "development") {
-          console.warn(
-            `⚠️  CORS Warning: Origin ${origin} not in whitelist, but allowing in dev mode`,
-          );
-          callback(null, true);
-        } else {
-          // ❌ In production, block
-          console.error(`❌ CORS Error: Origin ${origin} is not allowed`);
-          callback(new Error("Not allowed by CORS"));
-        }
+        return callback(null, true);
       }
+
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`CORS: allowing ${origin} in dev mode`);
+        return callback(null, true);
+      }
+
+      console.error(`CORS: blocked ${origin}`);
+      return callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
+    exposedHeaders: ["set-cookie"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   }),
 );
+
+app.options("*", cors());
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
