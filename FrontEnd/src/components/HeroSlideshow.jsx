@@ -157,10 +157,9 @@ const HeroSlideshow = () => {
 
   return (
     <div
-      className="group relative w-full overflow-hidden bg-gray-900 shadow-lg"
+      className="group relative w-full overflow-hidden bg-white shadow-lg"
       style={{
-        aspectRatio: "16/7",
-        minHeight: "300px",
+        aspectRatio: "16/9",
         fontFamily: "'Poppins', sans-serif",
       }}
       onMouseEnter={() => setIsPaused(true)}
@@ -181,13 +180,7 @@ const HeroSlideshow = () => {
           <img
             src={banner.image}
             alt={banner.title || "Banner"}
-            className="h-full w-full object-cover"
-            style={{
-              animation:
-                idx === currentIndex
-                  ? "hero-ken-burns 8s ease-out forwards"
-                  : "none",
-            }}
+            className="h-full w-full object-contain"
           />
           <div
             className="absolute inset-0"

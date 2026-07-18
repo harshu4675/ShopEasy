@@ -191,8 +191,8 @@ const ProductDetails = () => {
             <div
               className="relative mb-[14px] w-full overflow-hidden rounded-[16px] border border-[rgba(102,126,234,0.06)] shadow-[0_6px_24px_rgba(102,126,234,0.1)] max-md:mb-3 max-md:rounded-[14px] max-[480px]:mb-[10px] max-[480px]:rounded-[12px]"
               style={{
-                paddingTop: "100%",
-                background: "linear-gradient(135deg, #f8f9ff 0%, #f0f1f5 100%)",
+                paddingTop: "115%",
+                background: "#ffffff",
               }}
             >
               {discountPercent > 0 && (
@@ -209,7 +209,7 @@ const ProductDetails = () => {
               <img
                 src={product.images[selectedImage]}
                 alt={product.name}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[400ms] ease-in-out hover:scale-[1.03]"
+                className="absolute inset-0 h-full w-full object-contain "
               />
             </div>
 

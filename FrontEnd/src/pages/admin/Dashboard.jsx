@@ -277,7 +277,7 @@ const Dashboard = () => {
                 {greeting}, Admin
               </p>
               <h1 className="m-0 mb-2 text-3xl font-extrabold tracking-tight max-md:text-2xl">
-                Welcome to DBDClothes Dashboard
+                Welcome to TalishClothes Dashboard
               </h1>
               <p className="m-0 text-sm opacity-90">
                 Here is your business overview for today

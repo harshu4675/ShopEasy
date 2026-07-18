@@ -278,11 +278,11 @@ const MobileHome = () => {
                 to={`/product/${product._id}`}
                 className="block w-[130px] shrink-0 overflow-hidden rounded-xl bg-white shadow-sm no-underline"
               >
-                <div className="relative aspect-square bg-gray-50">
+                <div className="relative aspect-square bg-white">
                   <img
                     src={product.images?.[0]}
                     alt={product.name}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain p-1"
                   />
                 </div>
                 <div className="p-2">

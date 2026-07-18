@@ -415,11 +415,11 @@ const Categories = () => {
                         to={`/product/${product._id}`}
                         className="block overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline"
                       >
-                        <div className="relative aspect-[3/4] bg-gray-50">
+                        <div className="relative aspect-square bg-white">
                           <img
                             src={product.images?.[0]}
                             alt={product.name}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain p-2"
                           />
                           {disc > 0 && (
                             <span

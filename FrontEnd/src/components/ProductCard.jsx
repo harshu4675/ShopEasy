@@ -154,19 +154,15 @@ const ProductCard = ({ product }) => {
       )}
 
       <div
-        className="relative w-full overflow-hidden"
-        style={{
-          paddingTop: "100%",
-          background: "linear-gradient(135deg, #fdf2f8 0%, #f8fafc 100%)",
-        }}
+        className="relative w-full overflow-hidden bg-white"
+        style={{ paddingTop: "100%" }}
       >
         <img
           src={product.images[0]}
           alt={product.name}
-          className="absolute inset-0 h-full w-full border-none object-cover transition-transform duration-[400ms] ease-in-out group-hover:scale-[1.08]"
+          className="absolute inset-0 h-full w-full border-none object-contain p-2"
         />
-
-        <div className="absolute bottom-0 left-0 right-0 z-[5] flex translate-y-5 justify-center gap-[10px] bg-[linear-gradient(to_top,rgba(255,255,255,0.95)_0%,transparent_100%)] px-3 py-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 max-md:static max-md:translate-y-0 max-md:justify-center max-md:gap-3 max-md:bg-transparent max-md:px-3 max-md:py-2 max-md:opacity-100">
+        <div className="absolute bottom-0 left-0 right-0 z-[5] flex translate-y-5 justify-center gap-[10px] bg-[linear-gradient(to_top,rgba(255,255,255,0.95)_0%,transparent_100%)] px-3 py-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 max-md:hidden">
           <button
             onClick={toggleWishlist}
             disabled={loading.wishlist}

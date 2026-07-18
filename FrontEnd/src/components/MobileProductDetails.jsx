@@ -339,11 +339,11 @@ const MobileProductDetails = () => {
         onTouchEnd={handleTouchEnd}
         className="relative bg-white"
       >
-        <div className="relative aspect-square w-full overflow-hidden bg-gray-50">
+        <div className="relative aspect-[4/5] w-full overflow-hidden bg-white">
           <img
             src={product.images[imageIndex]}
             alt={product.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
           {discountPercent > 0 && (
             <span
@@ -383,52 +383,54 @@ const MobileProductDetails = () => {
       </div>
 
       <div className="mt-2 bg-white p-4">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            {product.brand && (
-              <p className="m-0 mb-0.5 text-[10px] font-bold uppercase tracking-widest text-pink-600">
-                {product.brand}
-              </p>
-            )}
-            <h1 className="m-0 text-base font-semibold leading-snug text-gray-900">
-              {product.name}
-            </h1>
+        <div className="mb-3">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              {product.brand && (
+                <p className="m-0 mb-0.5 text-[10px] font-bold uppercase tracking-widest text-pink-600">
+                  {product.brand}
+                </p>
+              )}
+              <h1 className="m-0 text-base font-semibold leading-snug text-gray-900">
+                {product.name}
+              </h1>
+            </div>
           </div>
-          <div className="flex flex-col items-center gap-3 shrink-0">
+
+          <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
             <button
               onClick={toggleWishlist}
               disabled={actionLoading.wishlist}
               aria-label="Wishlist"
-              className="flex flex-col items-center gap-0.5 border-none bg-transparent"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-2.5 text-xs font-semibold text-gray-700 transition-all active:bg-pink-50"
             >
               {actionLoading.wishlist ? (
                 <span
-                  className="inline-block h-5 w-5 rounded-full border-2 border-pink-200 border-t-pink-500"
+                  className="inline-block h-4 w-4 rounded-full border-2 border-pink-200 border-t-pink-500"
                   style={{ animation: "pd-spin 0.7s linear infinite" }}
                 />
               ) : (
                 <span
                   style={matIcon}
-                  className={`text-[24px] ${inWishlist ? "text-pink-600" : "text-gray-500"}`}
+                  className={`text-[20px] ${inWishlist ? "text-pink-600" : "text-gray-500"}`}
                 >
                   {inWishlist ? "favorite" : "favorite_border"}
                 </span>
               )}
-              <span className="text-[10px] font-semibold text-gray-600">
-                Wishlist
+              <span className={inWishlist ? "text-pink-600" : ""}>
+                {inWishlist ? "Wishlisted" : "Wishlist"}
               </span>
             </button>
+
             <button
               onClick={shareProduct}
               aria-label="Share"
-              className="flex flex-col items-center gap-0.5 border-none bg-transparent"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-2.5 text-xs font-semibold text-gray-700 transition-all active:bg-pink-50"
             >
-              <span style={matIcon} className="text-[22px] text-gray-500">
+              <span style={matIcon} className="text-[20px] text-gray-500">
                 share
               </span>
-              <span className="text-[10px] font-semibold text-gray-600">
-                Share
-              </span>
+              Share
             </button>
           </div>
         </div>
@@ -677,11 +679,11 @@ const MobileProductDetails = () => {
                   to={`/product/${p._id}`}
                   className="block w-[150px] shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline"
                 >
-                  <div className="relative aspect-square bg-gray-50">
+                  <div className="relative aspect-square bg-white">
                     <img
                       src={p.images?.[0]}
                       alt={p.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain p-2"
                     />
                     {disc > 0 && (
                       <span
