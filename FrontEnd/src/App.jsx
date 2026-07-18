@@ -11,6 +11,7 @@ import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import WelcomePopup from "./components/WelcomePopup";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -86,6 +87,7 @@ const AppLayout = () => {
 
   return (
     <>
+      {!isAdminRoute && !isAuthRoute && <WelcomePopup />}
       {!isAdminRoute && (
         <>
           <div className="hidden md:block">
