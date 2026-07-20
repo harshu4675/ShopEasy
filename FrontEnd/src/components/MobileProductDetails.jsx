@@ -229,13 +229,19 @@ const MobileProductDetails = () => {
           size: selectedSize,
           color: selectedColor,
         });
-        if (refreshCart) refreshCart();
+        setInCart(true);
+        if (refreshCart) {
+          try {
+            await refreshCart();
+          } catch {}
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
       }
+      setActionLoading((p) => ({ ...p, buy: false }));
       navigate("/checkout");
     } catch (err) {
-      showToast(err.response?.data?.message || "Error", "error");
-    } finally {
       setActionLoading((p) => ({ ...p, buy: false }));
+      showToast(err.response?.data?.message || "Error adding to cart", "error");
     }
   };
 

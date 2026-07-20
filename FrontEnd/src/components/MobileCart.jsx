@@ -40,12 +40,39 @@ const MobileCart = () => {
     try {
       const res = await api.get("/cart");
       setCart(res.data);
-    } catch {
-      showToast("Error loading cart", "error");
+    } catch (err) {
+      console.error("Cart fetch error:", err);
+      setCart({ items: [], appliedCoupon: null });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await api.get("/cart");
+        if (mounted) {
+          setCart(res.data);
+        }
+      } catch (err) {
+        console.error("Cart fetch error:", err);
+        if (mounted) {
+          setCart({ items: [], appliedCoupon: null });
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     fetchCart();

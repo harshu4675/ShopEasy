@@ -63,7 +63,7 @@ const WelcomePopup = () => {
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl max-md:max-w-sm"
+        className="relative w-full max-w-[340px] overflow-hidden rounded-2xl bg-white shadow-2xl max-md:max-w-[300px]"
         onClick={(e) => e.stopPropagation()}
         style={{
           animation: "wp-slide-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -72,15 +72,14 @@ const WelcomePopup = () => {
         <button
           onClick={handleClose}
           aria-label="Close"
-          className="absolute right-3 top-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-white/90 text-gray-700 shadow-md backdrop-blur-md transition-all hover:rotate-90 hover:bg-white"
+          className="absolute right-2 top-2 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-white/90 text-gray-700 shadow-md backdrop-blur-md transition-all hover:rotate-90 hover:bg-white"
         >
-          <span style={matIcon} className="text-[22px]">
+          <span style={matIcon} className="text-[16px]">
             close
           </span>
         </button>
-
         <div
-          className="relative overflow-hidden px-6 pb-8 pt-12 text-center max-md:pb-6 max-md:pt-10"
+          className="relative overflow-hidden px-4 pb-5 pt-7 text-center"
           style={{
             background:
               "linear-gradient(135deg, #4a0e2e 0%, #831843 40%, #be185d 100%)",
@@ -113,7 +112,7 @@ const WelcomePopup = () => {
 
           <div className="relative">
             <div
-              className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg"
+              className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl shadow-lg"
               style={{
                 background:
                   "linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1))",
@@ -122,16 +121,16 @@ const WelcomePopup = () => {
                 animation: "wp-bounce 2s ease-in-out infinite",
               }}
             >
-              <span style={matIcon} className="text-[32px] text-white">
+              <span style={matIcon} className="text-[22px] text-white">
                 redeem
               </span>
             </div>
 
             <p
-              className="mb-1 font-normal"
+              className="mb-0 font-normal"
               style={{
                 fontFamily: "'Great Vibes', cursive",
-                fontSize: 26,
+                fontSize: 18,
                 color: "#fce7f3",
                 lineHeight: 1,
               }}
@@ -142,7 +141,7 @@ const WelcomePopup = () => {
               className="mb-0 font-normal"
               style={{
                 fontFamily: "'Great Vibes', cursive",
-                fontSize: 40,
+                fontSize: 28,
                 color: "#ffffff",
                 lineHeight: 1.1,
                 textShadow: "0 2px 8px rgba(0,0,0,0.2)",
@@ -151,10 +150,10 @@ const WelcomePopup = () => {
               Talish Clothes
             </p>
             <p
-              className="mt-1 font-bold uppercase text-pink-100"
+              className="mt-0.5 font-bold uppercase text-pink-100"
               style={{
-                fontSize: 10,
-                letterSpacing: "0.4em",
+                fontSize: 8,
+                letterSpacing: "0.35em",
               }}
             >
               Fashion Redefined
@@ -162,12 +161,12 @@ const WelcomePopup = () => {
           </div>
         </div>
 
-        <div className="px-6 py-6 max-md:py-5">
-          <div className="mb-5 text-center">
-            <p className="m-0 mb-2 text-xs font-bold uppercase tracking-widest text-pink-600">
+        <div className="px-4 py-4">
+          <div className="mb-3 text-center">
+            <p className="m-0 mb-1 text-[9px] font-bold uppercase tracking-widest text-pink-600">
               Exclusive Offer
             </p>
-            <h2 className="m-0 mb-1 text-2xl font-extrabold text-gray-900 max-md:text-xl">
+            <h2 className="m-0 mb-0.5 text-lg font-extrabold text-gray-900">
               Get{" "}
               <span
                 style={{
@@ -181,13 +180,13 @@ const WelcomePopup = () => {
                 Rs.100 OFF
               </span>
             </h2>
-            <p className="m-0 text-sm text-gray-500">
+            <p className="m-0 text-xs text-gray-500">
               On your first order with us
             </p>
           </div>
 
           <div
-            className="mb-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-pink-300 p-3"
+            className="mb-3 flex items-center justify-between gap-2 rounded-xl border-2 border-dashed border-pink-300 p-2"
             style={{
               background: "linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)",
             }}
@@ -197,7 +196,7 @@ const WelcomePopup = () => {
                 Coupon Code
               </p>
               <p
-                className="m-0 text-lg font-bold tracking-[3px] text-gray-900"
+                className="m-0 text-sm font-bold tracking-[2px] text-gray-900"
                 style={{ fontFamily: "'Courier New', monospace" }}
               >
                 WELCOME100
@@ -228,24 +227,24 @@ const WelcomePopup = () => {
             </button>
           </div>
 
-          <div className="mb-5 space-y-2">
-            <div className="flex items-center gap-3 rounded-xl bg-pink-50 p-3">
+          <div className="mb-3 space-y-1.5">
+            <div className="flex items-center gap-2 rounded-lg bg-pink-50 p-2">
               <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
                 style={{
                   background: "linear-gradient(135deg, #831843, #ec4899)",
                 }}
               >
-                <span style={matIcon} className="text-[18px] text-white">
+                <span style={matIcon} className="text-[15px] text-white">
                   local_shipping
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="m-0 text-xs font-bold text-gray-900">
+                <p className="m-0 text-[11px] font-bold text-gray-900">
                   FREE Delivery
                 </p>
-                <p className="m-0 text-[11px] text-gray-600">
-                  On all orders above Rs.199
+                <p className="m-0 text-[10px] text-gray-600">
+                  On orders above Rs.199
                 </p>
               </div>
             </div>
@@ -257,7 +256,7 @@ const WelcomePopup = () => {
                   background: "linear-gradient(135deg, #831843, #ec4899)",
                 }}
               >
-                <span style={matIcon} className="text-[18px] text-white">
+                <span style={matIcon} className="text-[15px] text-white">
                   assignment_return
                 </span>
               </div>
@@ -278,7 +277,7 @@ const WelcomePopup = () => {
                   background: "linear-gradient(135deg, #831843, #ec4899)",
                 }}
               >
-                <span style={matIcon} className="text-[18px] text-white">
+                <span style={matIcon} className="text-[15px] text-white">
                   verified
                 </span>
               </div>
@@ -296,21 +295,21 @@ const WelcomePopup = () => {
           <Link
             to="/products"
             onClick={handleClose}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border-none px-6 py-3.5 text-sm font-bold text-white no-underline shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-none px-4 py-2.5 text-xs font-bold text-white no-underline shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
             style={{
               background:
                 "linear-gradient(135deg, #831843 0%, #be185d 50%, #ec4899 100%)",
             }}
           >
             Start Shopping Now
-            <span style={matIcon} className="text-[20px]">
+            <span style={matIcon} className="text-[16px]">
               arrow_forward
             </span>
           </Link>
 
           <button
             onClick={handleClose}
-            className="mt-3 w-full cursor-pointer border-none bg-transparent text-xs font-medium text-gray-500 hover:text-gray-700"
+            className="mt-2 w-full cursor-pointer border-none bg-transparent text-[11px] font-medium text-gray-500 hover:text-gray-700"
           >
             Maybe later
           </button>
