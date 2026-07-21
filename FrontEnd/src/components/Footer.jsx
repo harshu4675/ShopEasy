@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Logo from "./Logo";
-
+import { FaFacebookF, FaInstagram } from "react-icons/fa";
 const matIcon = {
   fontFamily: '"Material Symbols Outlined"',
   fontWeight: "normal",
@@ -81,16 +81,22 @@ const Footer = () => {
             </p>
             <div className="flex gap-3 max-[900px]:justify-center max-[480px]:gap-[10px]">
               {[
-                { href: "#facebook", icon: "facebook", label: "Facebook" },
                 {
-                  href: "#instagram",
-                  icon: "photo_camera",
+                  href: "https://www.facebook.com/talishfinds",
+                  icon: <FaFacebookF />,
+                  label: "Facebook",
+                },
+                {
+                  href: "https://www.instagram.com/talishfinds",
+                  icon: <FaInstagram />,
                   label: "Instagram",
                 },
               ].map(({ href, icon, label }) => (
                 <a
                   key={label}
                   href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={label}
                   className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-white/10 no-underline backdrop-blur-[10px] transition-all duration-300 hover:-translate-y-[3px] hover:border-transparent hover:shadow-[0_6px_20px_rgba(102,126,234,0.4)] max-[480px]:h-[38px] max-[480px]:w-[38px] max-[480px]:rounded-[10px] max-[380px]:h-9 max-[380px]:w-9"
                   onMouseEnter={(e) => {
@@ -164,7 +170,8 @@ const Footer = () => {
       <div className="relative z-10 border-t border-white/10 py-7 max-md:py-6 max-[480px]:py-5 max-[380px]:py-5">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-5 px-5 max-[900px]:flex-col max-[900px]:gap-4 max-[900px]:text-center max-[480px]:gap-[14px] max-[480px]:px-4 max-[380px]:gap-[14px] max-[380px]:px-[14px]">
           <p className="m-0 text-[14px] text-white/60 max-md:text-[13px] max-[480px]:text-[12px] max-[380px]:text-[11px]">
-            &copy; {new Date().getFullYear()} ShopEasy. All rights reserved.
+            &copy; {new Date().getFullYear()} TalishClothes. All rights
+            reserved.
           </p>
 
           <div className="flex flex-wrap justify-center gap-6 max-md:flex-col max-md:gap-3 max-[480px]:gap-[10px]">
