@@ -12,6 +12,9 @@ const Checkout = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [pincodeInfo, setPincodeInfo] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [formData, setFormData] = useState({
     fullName: user?.name || "",
@@ -87,11 +90,74 @@ const Checkout = () => {
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
-
+  useEffect(() => {
+    if (formData.pincode.length !== 6) {
+      setPincodeInfo(null);
+      return;
+    }
+    const validation = validatePincode(formData.pincode);
+    if (!validation.valid) {
+      setFieldErrors((prev) => ({ ...prev, pincode: validation.error }));
+      setPincodeInfo(null);
+      return;
+    }
+    setFieldErrors((prev) => ({ ...prev, pincode: null }));
+    const timer = setTimeout(async () => {
+      setPincodeLoading(true);
+      const result = await lookupPincode(formData.pincode);
+      setPincodeLoading(false);
+      if (result.success) {
+        setPincodeInfo(result.data);
+        setFormData((prev) => ({
+          ...prev,
+          city: result.data.city,
+          state: result.data.state,
+        }));
+      } else {
+        setPincodeInfo(null);
+        setFieldErrors((prev) => ({
+          ...prev,
+          pincode: "Invalid pincode - not found",
+        }));
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [formData.pincode]);
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "phone") {
+      setFormData({
+        ...formData,
+        phone: value.replace(/\D/g, "").slice(0, 10),
+      });
+    } else if (name === "pincode") {
+      setFormData({
+        ...formData,
+        pincode: value.replace(/\D/g, "").slice(0, 6),
+      });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
-
+  {
+    pincodeLoading && (
+      <p className="mt-1 text-xs text-gray-500">Verifying pincode...</p>
+    );
+  }
+  {
+    pincodeInfo && (
+      <p className="mt-1 text-xs font-medium text-green-600">
+        Verified: {pincodeInfo.area}, {pincodeInfo.city}, {pincodeInfo.state}
+      </p>
+    );
+  }
+  {
+    fieldErrors.pincode && (
+      <p className="mt-1 text-xs font-medium text-red-600">
+        {fieldErrors.pincode}
+      </p>
+    );
+  }
   const calculateSubtotal = () => {
     if (!cart?.items) return 0;
     return cart.items.reduce(
@@ -122,22 +188,27 @@ const Checkout = () => {
   };
 
   const validateStep1 = () => {
-    const { fullName, phone, address, city, state, pincode } = formData;
-    if (!fullName || !phone || !address || !city || !state || !pincode) {
-      showToast("Please fill all address fields", "error");
-      return false;
+    const errors = {};
+    const nameV = validateName(formData.fullName);
+    if (!nameV.valid) errors.fullName = nameV.error;
+    const phoneV = validatePhone(formData.phone);
+    if (!phoneV.valid) errors.phone = phoneV.error;
+    const addressV = validateAddress(formData.address);
+    if (!addressV.valid) errors.address = addressV.error;
+    if (!formData.city?.trim()) errors.city = "City required";
+    if (!formData.state?.trim()) errors.state = "State required";
+    const pincodeV = validatePincode(formData.pincode);
+    if (!pincodeV.valid) errors.pincode = pincodeV.error;
+    else if (!pincodeInfo && formData.pincode.length === 6) {
+      errors.pincode = "Please verify pincode";
     }
-    if (phone.length !== 10) {
-      showToast("Please enter a valid 10-digit phone number", "error");
-      return false;
-    }
-    if (pincode.length !== 6) {
-      showToast("Please enter a valid 6-digit pincode", "error");
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      showToast(Object.values(errors)[0], "error");
       return false;
     }
     return true;
   };
-
   const handleContinue = () => {
     if (validateStep1()) setStep(2);
   };

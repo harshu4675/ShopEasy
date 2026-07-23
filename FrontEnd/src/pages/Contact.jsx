@@ -41,44 +41,44 @@ const Contact = () => {
           <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
         </svg>
       ),
-      title: "Email Us",
-      value: "harshu6278@gmail.com",
-      link: "mailto:harshu6278@gmail.com",
-      description: "We'll respond within 24 hours",
-    },
-    {
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="#667eea"
-        >
-          <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z" />
-        </svg>
-      ),
-      title: "Call Us",
-      value: "+91 78989 69930",
-      link: "tel:+917898969930",
-      description: "Mon-Sat, 9 AM - 6 PM",
-    },
-    {
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="#667eea"
-        >
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-        </svg>
-      ),
-      title: "Visit Us",
-      value: "Dhar Road, Indore",
+      title: "Email Support",
+      value: "Send us a message",
       link: null,
-      description: "Madhya Pradesh, India",
+      description: "Use the contact form below",
+    },
+    {
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="#667eea"
+        >
+          <path d="M12 6v6l4 2 .75-1.23-3.75-2.27V6zM12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
+        </svg>
+      ),
+      title: "Response Time",
+      value: "Within 24 hours",
+      link: null,
+      description: "Mon-Sat, 9 AM - 6 PM IST",
+    },
+    {
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="#667eea"
+        >
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+        </svg>
+      ),
+      title: "Serving Across India",
+      value: "PAN India Delivery",
+      link: null,
+      description: "Fast & reliable shipping",
     },
   ];
 

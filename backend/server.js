@@ -23,6 +23,7 @@ const allowedOrigins = [
   "http://127.0.0.1:5000",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
+  "http://localhost:5173",
 ];
 
 app.use(
@@ -69,6 +70,7 @@ app.use("/api/auth", require("./routes/auth"));
 
 // Other Routes
 app.use("/api/products", require("./routes/products"));
+app.use("/api/push", require("./routes/push"));
 app.use("/api/reviews", require("./routes/reviews"));
 app.use("/api/cart", require("./routes/cart"));
 app.use("/api/wishlist", require("./routes/wishlist"));

@@ -5,6 +5,7 @@ import { AuthContext } from "../context/AuthContext";
 import { showToast } from "../utils/toast";
 import ReviewCard from "../components/ReviewCard";
 import Loader from "../components/Loader";
+import SizeChart, { getChartTypeForCategory } from "../components/SizeChart";
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -23,6 +24,7 @@ const ProductDetails = () => {
     image: null,
   });
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showSizeChart, setShowSizeChart] = useState(false);
 
   useEffect(() => {
     const fontId = "product-details-fonts";
@@ -314,9 +316,22 @@ const ProductDetails = () => {
 
             {product.sizes?.length > 0 && (
               <div className="mb-5 rounded-[12px] border border-[rgba(102,126,234,0.04)] bg-white p-[18px] shadow-[0_2px_8px_rgba(102,126,234,0.06)] max-md:mb-[14px] max-md:p-[14px] max-[480px]:mb-3 max-[480px]:rounded-[10px] max-[480px]:p-3">
-                <label className="mb-3 block text-[13px] font-bold uppercase tracking-[0.5px] text-[#1a1a2e] max-md:mb-[10px] max-md:text-[12px] max-[480px]:mb-2 max-[480px]:text-[11px]">
-                  Size:
-                </label>
+                <div className="mb-3 flex items-center justify-between">
+                  <label className="block text-[13px] font-bold uppercase tracking-[0.5px] text-[#1a1a2e] max-md:text-[12px] max-[480px]:text-[11px]">
+                    Size:
+                  </label>
+                  {getChartTypeForCategory(product.category) && (
+                    <button
+                      onClick={() => setShowSizeChart(true)}
+                      className="flex items-center gap-1 rounded-md border border-[#667eea] bg-white px-3 py-1 text-[12px] font-bold text-[#667eea] transition-all hover:bg-[#667eea] hover:text-white"
+                    >
+                      <span style={matIcon} className="text-[14px]">
+                        straighten
+                      </span>
+                      Size Chart
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2 max-[480px]:gap-[6px]">
                   {product.sizes.map((size) => (
                     <button
@@ -342,7 +357,6 @@ const ProductDetails = () => {
                 </div>
               </div>
             )}
-
             {product.colors?.length > 0 && (
               <div className="mb-5 rounded-[12px] border border-[rgba(102,126,234,0.04)] bg-white p-[18px] shadow-[0_2px_8px_rgba(102,126,234,0.06)] max-md:mb-[14px] max-md:p-[14px] max-[480px]:mb-3 max-[480px]:rounded-[10px] max-[480px]:p-3">
                 <label className="mb-3 block text-[13px] font-bold uppercase tracking-[0.5px] text-[#1a1a2e] max-md:mb-[10px] max-md:text-[12px] max-[480px]:mb-2 max-[480px]:text-[11px]">

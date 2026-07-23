@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import SizeChart, { getChartTypeForCategory } from "./SizeChart";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { api, formatPrice } from "../utils/api";
 import { AuthContext } from "../context/AuthContext";
@@ -46,6 +47,7 @@ const MobileProductDetails = () => {
   });
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showSizeChart, setShowSizeChart] = useState(false);
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     title: "",
@@ -492,9 +494,20 @@ const MobileProductDetails = () => {
 
       {product.sizes?.length > 0 && (
         <div className="mt-2 bg-white p-4">
-          <h3 className="m-0 mb-3 text-sm font-bold text-gray-900">
-            Select Size
-          </h3>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="m-0 text-sm font-bold text-gray-900">Select Size</h3>
+            {getChartTypeForCategory(product.category) && (
+              <button
+                onClick={() => setShowSizeChart(true)}
+                className="flex items-center gap-1 rounded-md border border-pink-300 bg-pink-50 px-2.5 py-1 text-[11px] font-bold text-pink-700"
+              >
+                <span style={matIcon} className="text-[14px]">
+                  straighten
+                </span>
+                Size Chart
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             {product.sizes.map((size) => (
               <button
@@ -795,6 +808,11 @@ const MobileProductDetails = () => {
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes pd-spin { to { transform: rotate(360deg); } }
       `}</style>
+      <SizeChart
+        isOpen={showSizeChart}
+        onClose={() => setShowSizeChart(false)}
+        category={product.category}
+      />
     </div>
   );
 };

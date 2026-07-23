@@ -105,6 +105,17 @@ const orderSchema = new mongoose.Schema(
       refundCompletedAt: Date,
       refundTransactionId: String,
       refundNotes: String,
+      paymentMethod: {
+        type: String,
+        enum: ["Bank Transfer", "UPI", "Wallet", "Original Payment", "Other"],
+      },
+      paymentProofUrl: String,
+      paymentProofPublicId: String,
+      processedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      additionalDetails: String,
     },
 
     deliveryUpdates: [deliveryUpdateSchema],

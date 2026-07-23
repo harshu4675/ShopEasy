@@ -6,12 +6,19 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import InstallPWABanner from "./components/InstallPWABanner";
+import PushPermissionPrompt from "./components/PushPermissionPrompt";
+import AdminBroadcast from "./pages/admin/AdminBroadcast";
+import { AdminNotificationProvider } from "./context/AdminNotificationContext";
+import AdminNotificationToast from "./components/AdminNotificationToast";
+import AdminNotifications from "./pages/admin/AdminNotifications";
 import { NotificationProvider } from "./context/NotificationContext";
 import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import WelcomePopup from "./components/WelcomePopup";
+import NotificationToast from "./components/NotificationToast";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -87,6 +94,10 @@ const AppLayout = () => {
 
   return (
     <>
+      <NotificationToast />
+      <AdminNotificationToast />
+      <InstallPWABanner />
+      <PushPermissionPrompt />
       {!isAdminRoute && !isAuthRoute && <WelcomePopup />}
       {!isAdminRoute && (
         <>
@@ -125,6 +136,22 @@ const AppLayout = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route
+            path="/admin/broadcast"
+            element={
+              <AdminRoute>
+                <AdminBroadcast />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/notifications"
+            element={
+              <AdminRoute>
+                <AdminNotifications />
+              </AdminRoute>
+            }
+          />
           <Route
             path="/cart"
             element={
@@ -197,7 +224,6 @@ const AppLayout = () => {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/admin/dashboard"
             element={
@@ -322,7 +348,7 @@ function App() {
               <AppLayout />
               <ToastContainer
                 position="top-right"
-                autoClose={3000}
+                autoClose={5000}
                 hideProgressBar={false}
                 newestOnTop
                 closeOnClick
@@ -330,8 +356,8 @@ function App() {
                 pauseOnFocusLoss
                 draggable
                 pauseOnHover
-                theme="colored"
-                limit={3}
+                theme="light"
+                limit={4}
               />
             </Router>
           </WishlistProvider>

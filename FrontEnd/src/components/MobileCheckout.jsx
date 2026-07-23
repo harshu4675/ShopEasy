@@ -23,6 +23,9 @@ const MobileCheckout = () => {
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [expandedSection, setExpandedSection] = useState(null);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [pincodeInfo, setPincodeInfo] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [formData, setFormData] = useState({
     fullName: user?.name || "",
@@ -110,18 +113,87 @@ const MobileCheckout = () => {
     fetchCart();
   }, [fetchCart]);
 
+  useEffect(() => {
+    if (formData.pincode.length !== 6) {
+      setPincodeInfo(null);
+      return;
+    }
+
+    const validation = validatePincode(formData.pincode);
+    if (!validation.valid) {
+      setFieldErrors((prev) => ({ ...prev, pincode: validation.error }));
+      setPincodeInfo(null);
+      return;
+    }
+
+    setFieldErrors((prev) => ({ ...prev, pincode: null }));
+
+    const timer = setTimeout(async () => {
+      setPincodeLoading(true);
+      const result = await lookupPincode(formData.pincode);
+      setPincodeLoading(false);
+
+      if (result.success) {
+        setPincodeInfo(result.data);
+        setFormData((prev) => ({
+          ...prev,
+          city: result.data.city,
+          state: result.data.state,
+        }));
+        setFieldErrors((prev) => ({
+          ...prev,
+          pincode: null,
+          city: null,
+          state: null,
+        }));
+      } else {
+        setPincodeInfo(null);
+        setFieldErrors((prev) => ({
+          ...prev,
+          pincode: "Invalid pincode - not found",
+        }));
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.pincode]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     if (name === "phone") {
-      setFormData({
-        ...formData,
-        phone: value.replace(/\D/g, "").slice(0, 10),
-      });
+      const digits = value.replace(/\D/g, "").slice(0, 10);
+      setFormData({ ...formData, phone: digits });
+      if (digits.length === 10) {
+        const v = validatePhone(digits);
+        setFieldErrors((prev) => ({
+          ...prev,
+          phone: v.valid ? null : v.error,
+        }));
+      } else if (digits.length > 0) {
+        setFieldErrors((prev) => ({ ...prev, phone: null }));
+      }
     } else if (name === "pincode") {
-      setFormData({
-        ...formData,
-        pincode: value.replace(/\D/g, "").slice(0, 6),
-      });
+      const digits = value.replace(/\D/g, "").slice(0, 6);
+      setFormData({ ...formData, pincode: digits });
+    } else if (name === "fullName") {
+      setFormData({ ...formData, fullName: value });
+      if (value.trim().length > 0) {
+        const v = validateName(value);
+        setFieldErrors((prev) => ({
+          ...prev,
+          fullName: v.valid ? null : v.error,
+        }));
+      }
+    } else if (name === "address") {
+      setFormData({ ...formData, address: value });
+      if (value.trim().length > 0) {
+        const v = validateAddress(value);
+        setFieldErrors((prev) => ({
+          ...prev,
+          address: v.valid ? null : v.error,
+        }));
+      }
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -152,36 +224,51 @@ const MobileCheckout = () => {
   const calcTotal = () =>
     Math.max(0, calcSubtotal() - calcDiscount() + calcDelivery());
 
-  const validateAddress = () => {
-    const { fullName, phone, address, city, state, pincode } = formData;
-    if (!fullName || !phone || !address || !city || !state || !pincode) {
-      showToast("Please fill all address fields", "error");
+  const validateAddressForm = () => {
+    const errors = {};
+
+    const nameV = validateName(formData.fullName);
+    if (!nameV.valid) errors.fullName = nameV.error;
+
+    const phoneV = validatePhone(formData.phone);
+    if (!phoneV.valid) errors.phone = phoneV.error;
+
+    const addressV = validateAddress(formData.address);
+    if (!addressV.valid) errors.address = addressV.error;
+
+    if (!formData.city?.trim()) errors.city = "City is required";
+    if (!formData.state?.trim()) errors.state = "State is required";
+
+    const pincodeV = validatePincode(formData.pincode);
+    if (!pincodeV.valid) errors.pincode = pincodeV.error;
+    else if (!pincodeInfo && formData.pincode.length === 6) {
+      errors.pincode = "Please verify pincode (invalid or not found)";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      showToast(firstError, "error");
       return false;
     }
-    if (phone.length !== 10) {
-      showToast("Enter a valid 10-digit phone", "error");
-      return false;
-    }
-    if (pincode.length !== 6) {
-      showToast("Enter a valid 6-digit pincode", "error");
-      return false;
-    }
+
     return true;
   };
 
   const goToPayment = () => {
-    if (validateAddress()) setStep(2);
+    if (validateAddressForm()) setStep(2);
   };
 
   const createOrder = async (paymentId = null, orderId = null) => {
     try {
       const orderData = {
         shippingAddress: {
-          fullName: formData.fullName,
+          fullName: formData.fullName.trim(),
           phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
           pincode: formData.pincode,
         },
         paymentMethod: formData.paymentMethod,
@@ -279,8 +366,19 @@ const MobileCheckout = () => {
 
   if (loading) return <Loader fullScreen />;
 
-  const inputClass =
-    "w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-3 text-sm outline-none transition-colors focus:border-pink-500";
+  const inputBase =
+    "w-full rounded-lg border-2 bg-white px-3 py-3 text-sm outline-none transition-colors";
+  const inputNormal = "border-gray-200 focus:border-pink-500";
+  const inputError = "border-red-500 focus:border-red-500";
+  const inputSuccess = "border-green-500 focus:border-green-500";
+
+  const getInputClass = (fieldName, hasValue) => {
+    if (fieldErrors[fieldName]) return `${inputBase} ${inputError}`;
+    if (hasValue && !fieldErrors[fieldName])
+      return `${inputBase} ${inputSuccess}`;
+    return `${inputBase} ${inputNormal}`;
+  };
+
   const labelClass = "mb-1.5 block text-xs font-semibold text-gray-700";
 
   return (
@@ -357,7 +455,7 @@ const MobileCheckout = () => {
 
           <div className="space-y-3">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-700">
+              <label className={labelClass}>
                 Full Name <span className="text-pink-600">*</span>
               </label>
               <input
@@ -367,15 +465,31 @@ const MobileCheckout = () => {
                 onChange={handleChange}
                 placeholder="Enter your full name"
                 required
-                className={inputClass}
+                className={getInputClass("fullName", formData.fullName)}
               />
+              {fieldErrors.fullName && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-red-600">
+                  <span style={matIcon} className="text-[12px]">
+                    error
+                  </span>
+                  {fieldErrors.fullName}
+                </p>
+              )}
             </div>
 
             <div>
               <label className={labelClass}>
                 Phone Number <span className="text-pink-600">*</span>
               </label>
-              <div className="flex items-center overflow-hidden rounded-lg border-2 border-gray-200 bg-white focus-within:border-pink-500">
+              <div
+                className={`flex items-center overflow-hidden rounded-lg border-2 bg-white transition-colors ${
+                  fieldErrors.phone
+                    ? "border-red-500"
+                    : formData.phone.length === 10
+                      ? "border-green-500"
+                      : "border-gray-200 focus-within:border-pink-500"
+                }`}
+              >
                 <span className="border-r border-gray-200 px-3 py-3 text-sm font-semibold text-gray-600">
                   +91
                 </span>
@@ -389,7 +503,23 @@ const MobileCheckout = () => {
                   required
                   className="flex-1 border-none bg-transparent px-3 py-3 text-sm outline-none"
                 />
+                {formData.phone.length === 10 && !fieldErrors.phone && (
+                  <span
+                    style={matIcon}
+                    className="mr-3 text-[18px] text-green-500"
+                  >
+                    check_circle
+                  </span>
+                )}
               </div>
+              {fieldErrors.phone && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-red-600">
+                  <span style={matIcon} className="text-[12px]">
+                    error
+                  </span>
+                  {fieldErrors.phone}
+                </p>
+              )}
             </div>
 
             <div>
@@ -400,11 +530,82 @@ const MobileCheckout = () => {
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                placeholder="House No., Building, Street, Area"
+                placeholder="House No., Building, Street, Area, Landmark"
                 rows={3}
                 required
-                className={inputClass + " resize-none"}
+                className={`${getInputClass("address", formData.address)} resize-none`}
               />
+              {fieldErrors.address && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-red-600">
+                  <span style={matIcon} className="text-[12px]">
+                    error
+                  </span>
+                  {fieldErrors.address}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className={labelClass}>
+                Pincode <span className="text-pink-600">*</span>
+              </label>
+              <div
+                className={`flex items-center overflow-hidden rounded-lg border-2 bg-white transition-colors ${
+                  fieldErrors.pincode
+                    ? "border-red-500"
+                    : pincodeInfo
+                      ? "border-green-500"
+                      : "border-gray-200 focus-within:border-pink-500"
+                }`}
+              >
+                <input
+                  type="tel"
+                  name="pincode"
+                  value={formData.pincode}
+                  onChange={handleChange}
+                  placeholder="6-digit pincode"
+                  maxLength="6"
+                  required
+                  className="flex-1 border-none bg-transparent px-3 py-3 text-sm outline-none"
+                />
+                <div className="mr-3 flex items-center">
+                  {pincodeLoading && (
+                    <span
+                      className="inline-block h-4 w-4 rounded-full border-2 border-pink-200 border-t-pink-500"
+                      style={{ animation: "co-spin 0.7s linear infinite" }}
+                    />
+                  )}
+                  {!pincodeLoading && pincodeInfo && (
+                    <span
+                      style={matIcon}
+                      className="text-[18px] text-green-500"
+                    >
+                      check_circle
+                    </span>
+                  )}
+                  {!pincodeLoading && fieldErrors.pincode && (
+                    <span style={matIcon} className="text-[18px] text-red-500">
+                      cancel
+                    </span>
+                  )}
+                </div>
+              </div>
+              {pincodeInfo && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-green-600">
+                  <span style={matIcon} className="text-[12px]">
+                    check_circle
+                  </span>
+                  {pincodeInfo.area}, {pincodeInfo.city}
+                </p>
+              )}
+              {fieldErrors.pincode && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-red-600">
+                  <span style={matIcon} className="text-[12px]">
+                    error
+                  </span>
+                  {fieldErrors.pincode}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -419,45 +620,45 @@ const MobileCheckout = () => {
                   onChange={handleChange}
                   placeholder="City"
                   required
-                  className={inputClass}
+                  readOnly={!!pincodeInfo}
+                  className={`${getInputClass("city", formData.city)} ${pincodeInfo ? "bg-green-50" : ""}`}
                 />
               </div>
               <div>
                 <label className={labelClass}>
-                  Pincode <span className="text-pink-600">*</span>
+                  State <span className="text-pink-600">*</span>
                 </label>
-                <input
-                  type="tel"
-                  name="pincode"
-                  value={formData.pincode}
+                <select
+                  name="state"
+                  value={formData.state}
                   onChange={handleChange}
-                  placeholder="6-digit"
-                  maxLength="6"
                   required
-                  className={inputClass}
-                />
+                  disabled={!!pincodeInfo}
+                  className={`${getInputClass("state", formData.state)} cursor-pointer ${pincodeInfo ? "bg-green-50" : ""}`}
+                >
+                  <option value="">Select State</option>
+                  {indianStates.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <div>
-              <label className={labelClass}>
-                State <span className="text-pink-600">*</span>
-              </label>
-              <select
-                name="state"
-                value={formData.state}
-                onChange={handleChange}
-                required
-                className={inputClass + " cursor-pointer"}
-              >
-                <option value="">Select State</option>
-                {indianStates.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {pincodeInfo && (
+              <div className="rounded-lg bg-green-50 p-2.5">
+                <p className="m-0 flex items-center gap-1.5 text-[11px] text-green-800">
+                  <span style={matIcon} className="text-[14px]">
+                    verified
+                  </span>
+                  <span>
+                    <strong>Verified:</strong> {pincodeInfo.city},{" "}
+                    {pincodeInfo.state}
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -738,7 +939,8 @@ const MobileCheckout = () => {
         {step === 1 ? (
           <button
             onClick={goToPayment}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border-none py-3 text-sm font-bold text-white shadow-lg"
+            disabled={pincodeLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-none py-3 text-sm font-bold text-white shadow-lg disabled:opacity-70"
             style={{
               background:
                 "linear-gradient(135deg, #831843 0%, #be185d 50%, #ec4899 100%)",

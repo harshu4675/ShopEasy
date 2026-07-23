@@ -1,6 +1,7 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { useAdminNotifications } from "../context/AdminNotificationContext";
 import Logo from "./Logo";
 
 const matIcon = {
@@ -11,12 +12,40 @@ const matIcon = {
   display: "inline-block",
 };
 
+const typeConfig = {
+  order: { icon: "shopping_bag", color: "#3b82f6", bg: "#dbeafe" },
+  refund: { icon: "payments", color: "#f59e0b", bg: "#fef3c7" },
+  return: { icon: "assignment_return", color: "#8b5cf6", bg: "#ede9fe" },
+  delivery: { icon: "local_shipping", color: "#10b981", bg: "#d1fae5" },
+  system: { icon: "notifications", color: "#831843", bg: "#fce7f3" },
+};
+
+const formatTime = (date) => {
+  const diff = Date.now() - new Date(date).getTime();
+  const m = Math.floor(diff / 60000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m`;
+  if (h < 24) return `${h}h`;
+  if (d < 7) return `${d}d`;
+  return new Date(date).toLocaleDateString("en-IN");
+};
+
 const AdminLayout = ({ children }) => {
   const { user, logout } = useContext(AuthContext);
+  const {
+    adminNotifications,
+    adminUnreadCount,
+    markAdminAsRead,
+    markAllAdminAsRead,
+  } = useAdminNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const bellRef = useRef(null);
 
   useEffect(() => {
     const fontId = "admin-layout-fonts";
@@ -32,7 +61,21 @@ const AdminLayout = ({ children }) => {
 
   useEffect(() => {
     setSidebarOpen(false);
+    setBellOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) {
+        setBellOpen(false);
+      }
+    };
+    if (bellOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [bellOpen]);
 
   const mainNav = [
     { to: "/admin/dashboard", icon: "dashboard", label: "Dashboard" },
@@ -50,13 +93,29 @@ const AdminLayout = ({ children }) => {
     { to: "/admin/coupons", icon: "local_offer", label: "Coupons" },
     { to: "/admin/reviews", icon: "star", label: "Reviews" },
     { to: "/admin/refunds", icon: "credit_card", label: "Refunds" },
+    {
+      to: "/admin/notifications",
+      icon: "notifications",
+      label: "Notifications",
+      badgeKey: "notifications",
+    },
+    {
+      to: "/admin/broadcast",
+      icon: "campaign",
+      label: "Broadcast",
+    },
   ];
 
   const bottomNav = [
     { to: "/admin/dashboard", icon: "dashboard", label: "Home" },
     { to: "/admin/products", icon: "inventory_2", label: "Products" },
     { to: "/admin/orders", icon: "shopping_bag", label: "Orders" },
-    { to: "/admin/trending", icon: "trending_up", label: "Trending" },
+    {
+      to: "/admin/notifications",
+      icon: "notifications",
+      label: "Alerts",
+      hasBadge: true,
+    },
     { icon: "menu", label: "More", isMenu: true },
   ];
 
@@ -100,6 +159,8 @@ const AdminLayout = ({ children }) => {
 
   const NavItem = ({ item, mini = false }) => {
     const active = isActive(item.to);
+    const showBadge = item.badgeKey === "notifications" && adminUnreadCount > 0;
+
     return (
       <Link
         to={item.to}
@@ -130,7 +191,19 @@ const AdminLayout = ({ children }) => {
         {!mini && (
           <span className="flex-1 text-sm font-semibold">{item.label}</span>
         )}
-        {!mini && active && (
+        {showBadge && (
+          <span
+            className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white shadow-md ${
+              mini ? "absolute -right-1 -top-1" : ""
+            }`}
+            style={{
+              background: "linear-gradient(135deg, #ef4444, #dc2626)",
+            }}
+          >
+            {adminUnreadCount > 99 ? "99+" : adminUnreadCount}
+          </span>
+        )}
+        {!mini && active && !showBadge && (
           <span style={matIcon} className="text-[16px] text-white/80">
             arrow_forward_ios
           </span>
@@ -138,6 +211,120 @@ const AdminLayout = ({ children }) => {
       </Link>
     );
   };
+
+  const BellDropdown = () => (
+    <div
+      className="absolute right-0 top-full z-50 mt-2 w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl"
+      style={{ animation: "bell-drop 0.2s ease-out" }}
+    >
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{
+          background: "linear-gradient(135deg, #4a0e2e 0%, #831843 100%)",
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <span style={matIcon} className="text-[20px] text-white">
+            notifications_active
+          </span>
+          <h3 className="m-0 text-sm font-bold text-white">Notifications</h3>
+          {adminUnreadCount > 0 && (
+            <span className="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold text-white">
+              {adminUnreadCount} new
+            </span>
+          )}
+        </div>
+        {adminUnreadCount > 0 && (
+          <button
+            onClick={markAllAdminAsRead}
+            className="rounded-md bg-white/20 px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/30"
+          >
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      <div className="max-h-[400px] overflow-y-auto">
+        {adminNotifications.length === 0 ? (
+          <div className="py-10 text-center">
+            <span
+              style={matIcon}
+              className="mb-2 block text-[40px] text-gray-300"
+            >
+              notifications_off
+            </span>
+            <p className="m-0 text-sm text-gray-500">No notifications yet</p>
+          </div>
+        ) : (
+          adminNotifications.slice(0, 8).map((n) => {
+            const cfg = typeConfig[n.type] || typeConfig.system;
+            return (
+              <div
+                key={n._id}
+                onClick={() => {
+                  if (!n.isRead) markAdminAsRead(n._id);
+                  if (n.link) {
+                    setBellOpen(false);
+                    navigate(n.link);
+                  }
+                }}
+                className={`flex cursor-pointer items-start gap-3 border-b border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50 ${
+                  !n.isRead ? "bg-pink-50/50" : ""
+                }`}
+              >
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: cfg.bg }}
+                >
+                  <span
+                    style={{ ...matIcon, color: cfg.color }}
+                    className="text-[18px]"
+                  >
+                    {cfg.icon}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="m-0 text-xs font-bold text-gray-900">
+                      {n.title}
+                    </h4>
+                    {!n.isRead && (
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-pink-600" />
+                    )}
+                  </div>
+                  <p
+                    className="m-0 mt-0.5 text-[11px] text-gray-600"
+                    style={{
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {n.message}
+                  </p>
+                  <p className="m-0 mt-1 text-[10px] text-gray-400">
+                    {formatTime(n.createdAt)}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <Link
+        to="/admin/notifications"
+        onClick={() => setBellOpen(false)}
+        className="flex items-center justify-center gap-1 border-t border-gray-100 bg-gray-50 py-2.5 text-xs font-bold text-pink-600 no-underline hover:bg-pink-50"
+      >
+        View all notifications
+        <span style={matIcon} className="text-[14px]">
+          arrow_forward
+        </span>
+      </Link>
+    </div>
+  );
 
   return (
     <div
@@ -296,6 +483,51 @@ const AdminLayout = ({ children }) => {
 
         <div className="flex items-center gap-2">
           <Link
+            to="/admin/broadcast"
+            title="Send broadcast"
+            className="hidden h-10 items-center gap-1.5 rounded-xl border-none px-3 text-xs font-bold text-white no-underline shadow-md transition-all hover:-translate-y-0.5 md:flex"
+            style={{
+              background:
+                "linear-gradient(135deg, #4a0e2e 0%, #831843 50%, #be185d 100%)",
+            }}
+          >
+            <span style={matIcon} className="text-[18px]">
+              campaign
+            </span>
+            Broadcast
+          </Link>
+
+          <div ref={bellRef} className="relative">
+            <button
+              onClick={() => setBellOpen(!bellOpen)}
+              title="Notifications"
+              className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition-all hover:border-pink-500 hover:text-pink-600"
+            >
+              <span style={matIcon} className="text-[22px]">
+                {adminUnreadCount > 0
+                  ? "notifications_active"
+                  : "notifications"}
+              </span>
+              {adminUnreadCount > 0 && (
+                <span
+                  className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-bold leading-none text-white"
+                  style={{
+                    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                    boxShadow: "0 2px 6px rgba(239, 68, 68, 0.4)",
+                    animation:
+                      adminUnreadCount > 0
+                        ? "bell-pulse 2s ease-in-out infinite"
+                        : "none",
+                  }}
+                >
+                  {adminUnreadCount > 99 ? "99+" : adminUnreadCount}
+                </span>
+              )}
+            </button>
+            {bellOpen && <BellDropdown />}
+          </div>
+
+          <Link
             to="/"
             title="Go to store"
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 no-underline transition-all hover:border-pink-500 hover:text-pink-600 lg:hidden"
@@ -444,6 +676,8 @@ const AdminLayout = ({ children }) => {
             }
 
             const active = isActive(item.to);
+            const showBadge = item.hasBadge && adminUnreadCount > 0;
+
             return (
               <Link
                 key={item.to}
@@ -453,7 +687,7 @@ const AdminLayout = ({ children }) => {
                 }`}
               >
                 <div
-                  className={`flex h-8 w-14 items-center justify-center rounded-full transition-all ${
+                  className={`relative flex h-8 w-14 items-center justify-center rounded-full transition-all ${
                     active ? "bg-pink-100" : ""
                   }`}
                 >
@@ -463,6 +697,16 @@ const AdminLayout = ({ children }) => {
                   >
                     {item.icon}
                   </span>
+                  {showBadge && (
+                    <span
+                      className="absolute right-2 top-0 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white px-1 text-[9px] font-bold leading-none text-white"
+                      style={{
+                        background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                      }}
+                    >
+                      {adminUnreadCount > 9 ? "9+" : adminUnreadCount}
+                    </span>
+                  )}
                 </div>
                 <span
                   className={`text-[10px] ${active ? "font-bold" : "font-semibold"}`}
@@ -483,6 +727,14 @@ const AdminLayout = ({ children }) => {
         @keyframes admin-fade-in {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes bell-drop {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bell-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.15); }
         }
       `}</style>
     </div>

@@ -5,8 +5,70 @@ const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 const Coupon = require("../models/Coupon");
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
+const multer = require("multer");
+const cloudinary = require("../config/cloudinary");
+const { notifyAllAdmins } = require("../utils/adminNotifier");
+const { sendPushToUser } = require("../utils/pushService");
+const {
+  sendOrderPlacedEmail,
+  sendOrderStatusEmail,
+  sendRefundRequestedEmail,
+  sendRefundProcessedEmail,
+  sendAdminNewOrderAlert,
+} = require("../utils/emailService");
+
+const safeSendEmail = async (fn, ...args) => {
+  try {
+    await fn(...args);
+  } catch (err) {
+    console.error("Email send failed (non-critical):", err.message);
+  }
+};
+
+const refundStorage = multer.memoryStorage();
+const refundUpload = multer({
+  storage: refundStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|webp|pdf/;
+    const mimetype = filetypes.test(file.mimetype);
+    if (mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error("Only image files (JPG, PNG, WebP) or PDF allowed"));
+  },
+});
+
+const uploadRefundProof = (fileBuffer, mimetype) => {
+  return new Promise((resolve, reject) => {
+    const isPdf = mimetype === "application/pdf";
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "talish/refund-proofs",
+        resource_type: isPdf ? "raw" : "image",
+        transformation: isPdf
+          ? undefined
+          : [
+              { width: 1500, crop: "limit" },
+              { quality: "auto:good" },
+              { fetch_format: "auto" },
+            ],
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+          });
+      },
+    );
+    uploadStream.end(fileBuffer);
+  });
+};
 
 router.get("/admin/all", auth, admin, async (req, res) => {
   try {
@@ -235,6 +297,21 @@ router.post("/", auth, async (req, res) => {
       orderId: order._id,
     });
 
+    const userDoc = await User.findById(req.user._id).select(
+      "name email phone",
+    );
+
+    await notifyAllAdmins({
+      type: "order",
+      title: "New Order Received",
+      message: `New order #${order.orderId} from ${userDoc.name} - Rs.${order.totalAmount} (${paymentMethod}${paymentStatus === "Paid" ? " - Paid" : ""})`,
+      orderId: order._id,
+      link: "/admin/orders",
+    });
+
+    safeSendEmail(sendOrderPlacedEmail, order, userDoc);
+    safeSendEmail(sendAdminNewOrderAlert, order, userDoc);
+
     res.status(201).json(order);
   } catch (error) {
     console.error("Create order error:", error);
@@ -337,6 +414,18 @@ router.put("/:id/cancel", auth, async (req, res) => {
       message: notificationMessage,
       orderId: order._id,
     });
+
+    const userDoc = await User.findById(req.user._id).select("name email");
+
+    await notifyAllAdmins({
+      type: "order",
+      title: "Order Cancelled by Customer",
+      message: `Order #${order.orderId} cancelled by ${userDoc.name}${wasPaid ? " - Refund required" : ""}. Reason: ${cancellationReason || "Not specified"}`,
+      orderId: order._id,
+      link: "/admin/orders",
+    });
+
+    safeSendEmail(sendOrderStatusEmail, order, userDoc, "Cancelled");
 
     res.json({
       success: true,
@@ -441,6 +530,18 @@ router.post("/:id/refund-bank-details", auth, async (req, res) => {
       orderId: order._id,
     });
 
+    const userDoc = await User.findById(req.user._id).select("name email");
+
+    await notifyAllAdmins({
+      type: "refund",
+      title: "New Refund Request",
+      message: `Refund request for order #${order.orderId} - Rs.${order.totalAmount} from ${userDoc.name}. Bank details submitted.`,
+      orderId: order._id,
+      link: "/admin/refunds",
+    });
+
+    safeSendEmail(sendRefundRequestedEmail, order, userDoc);
+
     res.json({
       success: true,
       message:
@@ -453,58 +554,102 @@ router.post("/:id/refund-bank-details", auth, async (req, res) => {
   }
 });
 
-router.put("/:id/process-refund", auth, admin, async (req, res) => {
-  try {
-    const { refundTransactionId, refundNotes } = req.body;
+router.put(
+  "/:id/process-refund",
+  auth,
+  admin,
+  refundUpload.single("paymentProof"),
+  async (req, res) => {
+    try {
+      const {
+        refundTransactionId,
+        refundNotes,
+        paymentMethod,
+        additionalDetails,
+      } = req.body;
 
-    const order = await Order.findById(req.params.id).populate(
-      "user",
-      "name email phone",
-    );
+      const order = await Order.findById(req.params.id).populate(
+        "user",
+        "name email phone",
+      );
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      if (order.paymentStatus !== "Refund Requested") {
+        return res
+          .status(400)
+          .json({ message: "No pending refund request for this order" });
+      }
+
+      let proofData = null;
+      if (req.file) {
+        try {
+          proofData = await uploadRefundProof(
+            req.file.buffer,
+            req.file.mimetype,
+          );
+        } catch (uploadErr) {
+          console.error("Payment proof upload error:", uploadErr);
+          return res
+            .status(500)
+            .json({ message: "Failed to upload payment proof" });
+        }
+      }
+
+      order.paymentStatus = "Refunded";
+      order.refundDetails.refundCompletedAt = new Date();
+      order.refundDetails.refundTransactionId =
+        refundTransactionId?.trim() || `REF${Date.now()}`;
+      order.refundDetails.refundNotes =
+        refundNotes?.trim() || "Refund processed successfully";
+      order.refundDetails.paymentMethod = paymentMethod || "Bank Transfer";
+      order.refundDetails.additionalDetails = additionalDetails?.trim() || "";
+      order.refundDetails.processedBy = req.user._id;
+
+      if (proofData) {
+        order.refundDetails.paymentProofUrl = proofData.url;
+        order.refundDetails.paymentProofPublicId = proofData.publicId;
+      }
+
+      order.deliveryUpdates.push({
+        status: "Refund Completed",
+        description: `Refund of Rs.${order.totalAmount} processed via ${paymentMethod || "Bank Transfer"}. Transaction ID: ${order.refundDetails.refundTransactionId}`,
+        timestamp: new Date(),
+      });
+
+      await order.save();
+
+      await Notification.create({
+        user: order.user._id,
+        type: "order",
+        title: "Refund Processed",
+        message: `Your refund of Rs.${order.totalAmount} for order #${order.orderId} has been processed via ${paymentMethod || "Bank Transfer"}. Transaction ID: ${order.refundDetails.refundTransactionId}`,
+        orderId: order._id,
+      });
+      sendPushToUser(order.user._id, {
+        title: "Refund Processed",
+        body: `Your refund of Rs.${order.totalAmount} for order #${order.orderId} has been processed`,
+        icon: "/logo192.png",
+        badge: "/logo192.png",
+        url: "/my-orders",
+        tag: `refund-${order._id}`,
+      }).catch(() => {});
+
+      safeSendEmail(sendRefundProcessedEmail, order, order.user);
+
+      res.json({
+        success: true,
+        message: "Refund processed successfully",
+        order,
+      });
+    } catch (error) {
+      console.error("Process refund error:", error);
+      res.status(500).json({ message: error.message });
     }
-
-    if (order.paymentStatus !== "Refund Requested") {
-      return res
-        .status(400)
-        .json({ message: "No pending refund request for this order" });
-    }
-
-    order.paymentStatus = "Refunded";
-    order.refundDetails.refundCompletedAt = new Date();
-    order.refundDetails.refundTransactionId =
-      refundTransactionId || `REF${Date.now()}`;
-    order.refundDetails.refundNotes =
-      refundNotes || "Refund processed successfully";
-
-    order.deliveryUpdates.push({
-      status: "Refund Completed",
-      description: `Refund of Rs.${order.totalAmount} processed successfully. Transaction ID: ${order.refundDetails.refundTransactionId}`,
-      timestamp: new Date(),
-    });
-
-    await order.save();
-
-    await Notification.create({
-      user: order.user._id,
-      type: "order",
-      title: "Refund Processed",
-      message: `Your refund of Rs.${order.totalAmount} for order #${order.orderId} has been processed successfully. Transaction ID: ${order.refundDetails.refundTransactionId}`,
-      orderId: order._id,
-    });
-
-    res.json({
-      success: true,
-      message: "Refund processed successfully",
-      order,
-    });
-  } catch (error) {
-    console.error("Process refund error:", error);
-    res.status(500).json({ message: error.message });
-  }
-});
+  },
+);
 
 router.put("/:id/status", auth, admin, async (req, res) => {
   try {
@@ -546,6 +691,11 @@ router.put("/:id/status", auth, admin, async (req, res) => {
     }
 
     const previousStatus = order.orderStatus;
+
+    if (previousStatus === orderStatus) {
+      return res.json(order);
+    }
+
     order.orderStatus = orderStatus;
 
     order.deliveryUpdates.push({
@@ -610,8 +760,29 @@ router.put("/:id/status", auth, admin, async (req, res) => {
         message: `Your order #${order.orderId} has been ${orderStatus.toLowerCase()}`,
         orderId: order._id,
       });
+
+      sendPushToUser(order.user._id || order.user, {
+        title: `Order ${orderStatus}`,
+        body: `Your order #${order.orderId} has been ${orderStatus.toLowerCase()}`,
+        icon: "/logo192.png",
+        badge: "/logo192.png",
+        url: "/my-orders",
+        tag: `order-${order._id}`,
+      }).catch(() => {});
     } catch (notifError) {
       console.error("Notification error (non-critical):", notifError.message);
+    }
+
+    const emailStatuses = [
+      "Confirmed",
+      "Processing",
+      "Shipped",
+      "Out for Delivery",
+      "Delivered",
+      "Cancelled",
+    ];
+    if (emailStatuses.includes(orderStatus) && order.user?.email) {
+      safeSendEmail(sendOrderStatusEmail, order, order.user, orderStatus);
     }
 
     res.json(order);
