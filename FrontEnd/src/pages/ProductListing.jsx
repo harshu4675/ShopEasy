@@ -112,6 +112,8 @@ const ProductListing = () => {
     (v) => v && v !== "All",
   ).length;
 
+  const hasActiveFilters = activeFiltersCount > 0;
+
   const categories = [
     "All",
     "Men's Clothing",
@@ -139,11 +141,13 @@ const ProductListing = () => {
             <h1 className="mb-1 text-3xl font-bold text-gray-900 max-md:text-2xl">
               {filters.category || "All Products"}
             </h1>
-            <p className="m-0 text-sm text-gray-500">
-              {loading
-                ? "Loading products..."
-                : `${products.length} products found`}
-            </p>
+            {hasActiveFilters && (
+              <p className="m-0 text-sm text-gray-500">
+                {loading
+                  ? "Loading products..."
+                  : `${products.length} ${products.length === 1 ? "product" : "products"} found`}
+              </p>
+            )}
           </div>
           <button
             onClick={() => setFiltersOpen(!filtersOpen)}
@@ -285,9 +289,16 @@ const ProductListing = () => {
 
           <div className="flex-1">
             <div className="mb-6 flex items-center justify-between rounded-xl border border-gray-100 bg-white px-5 py-4 shadow-sm max-md:flex-col max-md:items-stretch max-md:gap-3">
-              <span className="text-sm font-semibold text-gray-700">
-                {products.length} Results
-              </span>
+              {hasActiveFilters ? (
+                <span className="text-sm font-semibold text-gray-700">
+                  {products.length}{" "}
+                  {products.length === 1 ? "Result" : "Results"}
+                </span>
+              ) : (
+                <span className="text-sm font-semibold text-gray-700">
+                  Browse Products
+                </span>
+              )}
               <div className="flex items-center gap-3">
                 <label className="text-sm text-gray-600">Sort by:</label>
                 <select

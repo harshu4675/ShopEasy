@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, formatPrice, trendingAPI, bannersAPI } from "../utils/api";
 import { getRecentlyViewed } from "../utils/recentlyViewed";
 import ProductCard from "./ProductCard";
+import MobileWelcomeBanner from "./MobileWelcomeBanner";
 
 const matIcon = {
   fontFamily: '"Material Symbols Outlined"',
@@ -17,6 +18,9 @@ const MobileHome = () => {
   const [banners, setBanners] = useState([]);
   const [bannerIndex, setBannerIndex] = useState(0);
   const [products, setProducts] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [deals, setDeals] = useState([]);
+  const [newArrivals, setNewArrivals] = useState([]);
   const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,40 +41,42 @@ const MobileHome = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [bannerRes, trendRes, newRes, allRes] = await Promise.all([
-        bannersAPI.getActive().catch(() => ({ data: [] })),
-        trendingAPI.get(8).catch(() => ({ data: [] })),
-        api.get("/products?sort=newest&limit=12").catch(() => ({ data: [] })),
-        api.get("/products?limit=20").catch(() => ({ data: [] })),
-      ]);
+      const [bannerRes, trendRes, newRes, dealsRes, allRes] = await Promise.all(
+        [
+          bannersAPI.getActive().catch(() => ({ data: [] })),
+          trendingAPI.get(8).catch(() => ({ data: [] })),
+          api.get("/products?sort=newest&limit=8").catch(() => ({ data: [] })),
+          api
+            .get("/products?sort=discount&limit=8")
+            .catch(() => ({ data: [] })),
+          api.get("/products?limit=20").catch(() => ({ data: [] })),
+        ],
+      );
 
       setBanners(Array.isArray(bannerRes.data) ? bannerRes.data : []);
 
       const extract = (r) =>
         Array.isArray(r.data) ? r.data : r.data?.products || [];
 
-      const trend = extract(trendRes);
-      const fresh = extract(newRes);
+      const trendArr = extract(trendRes).slice(0, 6);
+      const newArr = extract(newRes).slice(0, 6);
+      const dealArr = extract(dealsRes)
+        .filter((p) => (p.discount || 0) > 0 || p.originalPrice > p.price)
+        .slice(0, 6);
       const all = extract(allRes);
 
-      const mixed = [];
-      const usedIds = new Set();
+      setTrending(trendArr);
+      setNewArrivals(newArr);
+      setDeals(dealArr);
 
-      const addUnique = (item) => {
-        if (item && !usedIds.has(item._id)) {
-          mixed.push(item);
-          usedIds.add(item._id);
-        }
-      };
+      const usedIds = new Set([
+        ...trendArr.map((p) => p._id),
+        ...newArr.map((p) => p._id),
+        ...dealArr.map((p) => p._id),
+      ]);
+      const remaining = all.filter((p) => !usedIds.has(p._id)).slice(0, 20);
+      setProducts(remaining);
 
-      const maxLen = Math.max(trend.length, fresh.length, all.length);
-      for (let i = 0; i < maxLen; i++) {
-        addUnique(trend[i]);
-        addUnique(fresh[i]);
-        addUnique(all[i]);
-      }
-
-      setProducts(mixed.slice(0, 24));
       setRecentlyViewed(getRecentlyViewed(10));
     } catch (err) {
       console.error("Home data error:", err);
@@ -113,14 +119,109 @@ const MobileHome = () => {
   ];
 
   const tabs = ["For You", "Fashion", "Beauty", "Home", "Electronics"];
-
   const currentBanner = banners[bannerIndex];
+
+  const SectionHeader = ({ icon, iconBg, title, subtitle, link }) => (
+    <div className="mb-2 flex items-center justify-between px-3">
+      <div className="flex items-center gap-2">
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-lg"
+          style={{ background: iconBg }}
+        >
+          <span style={matIcon} className="text-[18px] text-white">
+            {icon}
+          </span>
+        </div>
+        <div>
+          <h2 className="m-0 text-sm font-bold text-gray-900">{title}</h2>
+          {subtitle && (
+            <p className="m-0 text-[10px] text-gray-500">{subtitle}</p>
+          )}
+        </div>
+      </div>
+      {link && (
+        <Link
+          to={link}
+          className="flex items-center gap-0.5 text-[11px] font-bold text-pink-600 no-underline"
+        >
+          See all
+          <span style={matIcon} className="text-[14px]">
+            chevron_right
+          </span>
+        </Link>
+      )}
+    </div>
+  );
+
+  const HorizontalProductRow = ({ items }) => (
+    <div className="scrollbar-none flex gap-2 overflow-x-auto px-3 pb-2">
+      {items.map((product) => {
+        const disc = product.originalPrice
+          ? Math.round(
+              ((product.originalPrice - product.price) /
+                product.originalPrice) *
+                100,
+            )
+          : product.discount || 0;
+        return (
+          <Link
+            key={product._id}
+            to={`/product/${product._id}`}
+            className="block w-[140px] shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline"
+          >
+            <div className="relative aspect-square bg-white">
+              <img
+                src={product.images?.[0]}
+                alt={product.name}
+                className="h-full w-full object-contain p-1.5"
+              />
+              {disc > 0 && (
+                <span
+                  className="absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold text-white"
+                  style={{
+                    background: "linear-gradient(135deg, #831843, #be185d)",
+                  }}
+                >
+                  {disc}% OFF
+                </span>
+              )}
+            </div>
+            <div className="p-2">
+              <p
+                className="m-0 mb-1 text-[11px] font-semibold text-gray-800"
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {product.name}
+              </p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xs font-bold text-gray-900">
+                  {formatPrice(product.price)}
+                </span>
+                {product.originalPrice > product.price && (
+                  <span className="text-[10px] text-gray-400 line-through">
+                    {formatPrice(product.originalPrice)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div
       className="bg-gray-50 pb-2"
       style={{ fontFamily: "'Poppins', sans-serif" }}
     >
+      <MobileWelcomeBanner />
+
       <div className="sticky top-14 z-30 bg-white px-3 pt-3 pb-2 shadow-sm">
         <form
           onSubmit={handleSearch}
@@ -219,7 +320,6 @@ const MobileHome = () => {
               alt={currentBanner.title || "Banner"}
               className="h-full w-full object-cover"
             />
-
             {(currentBanner.title || currentBanner.subtitle) && (
               <div
                 className="absolute inset-0 flex flex-col justify-end p-4"
@@ -240,11 +340,6 @@ const MobileHome = () => {
                 )}
               </div>
             )}
-
-            <div className="absolute right-2 top-2 rounded-full bg-black/40 px-2 py-0.5 text-[9px] font-semibold uppercase text-white backdrop-blur-md">
-              AD
-            </div>
-
             {banners.length > 1 && (
               <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
                 {banners.map((_, i) => (
@@ -263,81 +358,98 @@ const MobileHome = () => {
 
       {recentlyViewed.length > 0 && (
         <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between px-3">
-            <h2 className="m-0 flex items-center gap-1.5 text-sm font-bold text-gray-900">
-              <span style={matIcon} className="text-[18px] text-pink-600">
-                history
-              </span>
-              Recently Viewed
-            </h2>
-          </div>
-          <div className="scrollbar-none flex gap-2 overflow-x-auto px-3 pb-2">
-            {recentlyViewed.map((product) => (
-              <Link
-                key={product._id}
-                to={`/product/${product._id}`}
-                className="block w-[130px] shrink-0 overflow-hidden rounded-xl bg-white shadow-sm no-underline"
-              >
-                <div className="relative aspect-square bg-white">
-                  <img
-                    src={product.images?.[0]}
-                    alt={product.name}
-                    className="h-full w-full object-contain p-1"
-                  />
-                </div>
-                <div className="p-2">
-                  <p
-                    className="m-0 mb-1 text-[11px] font-semibold text-gray-800"
-                    style={{
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {product.name}
-                  </p>
-                  <p className="m-0 text-xs font-bold text-gray-900">
-                    {formatPrice(product.price)}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <SectionHeader
+            icon="history"
+            iconBg="linear-gradient(135deg, #6366f1, #4f46e5)"
+            title="Recently Viewed"
+          />
+          <HorizontalProductRow items={recentlyViewed} />
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between border-y border-gray-100 bg-white px-2 py-2 text-xs font-semibold text-gray-700">
-        <button className="flex items-center gap-1 px-3 py-1">
-          <span style={matIcon} className="text-[18px]">
-            swap_vert
-          </span>
-          Sort
-        </button>
-        <div className="h-4 w-px bg-gray-200" />
-        <button className="flex items-center gap-1 px-3 py-1">
-          Category
-          <span style={matIcon} className="text-[16px]">
-            expand_more
-          </span>
-        </button>
-        <div className="h-4 w-px bg-gray-200" />
-        <button className="flex items-center gap-1 px-3 py-1">
-          Gender
-          <span style={matIcon} className="text-[16px]">
-            expand_more
-          </span>
-        </button>
-        <div className="h-4 w-px bg-gray-200" />
-        <button className="flex items-center gap-1 px-3 py-1">
-          <span style={matIcon} className="text-[18px]">
-            tune
-          </span>
-          Filters
-        </button>
+      {trending.length > 0 && (
+        <div className="mt-4">
+          <SectionHeader
+            icon="local_fire_department"
+            iconBg="linear-gradient(135deg, #ec4899, #be185d)"
+            title="Trending Now"
+            subtitle="Most loved by customers"
+            link="/products"
+          />
+          <HorizontalProductRow items={trending} />
+        </div>
+      )}
+
+      {deals.length > 0 && (
+        <div
+          className="mt-4 py-4"
+          style={{
+            background:
+              "linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%)",
+          }}
+        >
+          <SectionHeader
+            icon="percent"
+            iconBg="linear-gradient(135deg, #f59e0b, #ef4444)"
+            title="Deals of the Day"
+            subtitle="Limited time offers"
+            link="/products?sort=discount"
+          />
+          <HorizontalProductRow items={deals} />
+        </div>
+      )}
+
+      {newArrivals.length > 0 && (
+        <div className="mt-4">
+          <SectionHeader
+            icon="auto_awesome"
+            iconBg="linear-gradient(135deg, #8b5cf6, #6366f1)"
+            title="New Arrivals"
+            subtitle="Fresh styles just in"
+            link="/products?sort=newest"
+          />
+          <HorizontalProductRow items={newArrivals} />
+        </div>
+      )}
+
+      <div className="mt-4 border-y border-gray-100 bg-white">
+        <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold text-gray-700">
+          <button className="flex items-center gap-1 px-3 py-1">
+            <span style={matIcon} className="text-[18px]">
+              swap_vert
+            </span>
+            Sort
+          </button>
+          <div className="h-4 w-px bg-gray-200" />
+          <button className="flex items-center gap-1 px-3 py-1">
+            Category
+            <span style={matIcon} className="text-[16px]">
+              expand_more
+            </span>
+          </button>
+          <div className="h-4 w-px bg-gray-200" />
+          <button className="flex items-center gap-1 px-3 py-1">
+            Gender
+            <span style={matIcon} className="text-[16px]">
+              expand_more
+            </span>
+          </button>
+          <div className="h-4 w-px bg-gray-200" />
+          <button className="flex items-center gap-1 px-3 py-1">
+            <span style={matIcon} className="text-[18px]">
+              tune
+            </span>
+            Filters
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 px-2">
+        <div className="mb-2 px-1">
+          <h2 className="m-0 text-sm font-bold text-gray-900">
+            Explore More Products
+          </h2>
+        </div>
         {loading ? (
           <div className="grid grid-cols-2 gap-2">
             {Array.from({ length: 6 }).map((_, i) => (

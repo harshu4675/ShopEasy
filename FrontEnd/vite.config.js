@@ -50,7 +50,9 @@ export default defineConfig({
         categories: ["shopping", "lifestyle", "fashion"],
       },
       devOptions: {
-        enabled: false,
+        enabled: true,
+        type: "module",
+        navigateFallback: "index.html",
       },
     }),
   ],

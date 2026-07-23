@@ -1,59 +1,71 @@
 export const validatePhone = (phone) => {
   if (!phone) return { valid: false, error: "Phone number is required" };
   const cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length !== 10) {
-    return { valid: false, error: "Phone must be 10 digits" };
-  }
-  if (!/^[6-9]/.test(cleaned)) {
-    return { valid: false, error: "Phone must start with 6, 7, 8 or 9" };
-  }
+  if (cleaned.length === 0)
+    return { valid: false, error: "Enter your phone number" };
+  if (cleaned.length < 10)
+    return {
+      valid: false,
+      error: `Phone must be 10 digits (${cleaned.length}/10)`,
+    };
+  if (cleaned.length > 10)
+    return { valid: false, error: "Phone cannot exceed 10 digits" };
+  if (!/^[6-9]/.test(cleaned))
+    return {
+      valid: false,
+      error: "Phone must start with 6, 7, 8 or 9",
+    };
+  if (/^(\d)\1{9}$/.test(cleaned))
+    return { valid: false, error: "Invalid phone number" };
   return { valid: true };
 };
 
 export const validatePincode = (pincode) => {
   if (!pincode) return { valid: false, error: "Pincode is required" };
   const cleaned = pincode.replace(/\D/g, "");
-  if (cleaned.length !== 6) {
-    return { valid: false, error: "Pincode must be 6 digits" };
-  }
-  if (!/^[1-9][0-9]{5}$/.test(cleaned)) {
-    return { valid: false, error: "Invalid pincode format" };
-  }
+  if (cleaned.length === 0)
+    return { valid: false, error: "Enter your pincode" };
+  if (cleaned.length < 6)
+    return {
+      valid: false,
+      error: `Pincode must be 6 digits (${cleaned.length}/6)`,
+    };
+  if (cleaned.length > 6)
+    return { valid: false, error: "Pincode cannot exceed 6 digits" };
+  if (!/^[1-9][0-9]{5}$/.test(cleaned))
+    return { valid: false, error: "Pincode cannot start with 0" };
   return { valid: true };
 };
 
 export const validateName = (name) => {
-  if (!name || !name.trim()) {
+  if (!name || !name.trim())
     return { valid: false, error: "Full name is required" };
-  }
   const trimmed = name.trim();
-  if (trimmed.length < 3) {
+  if (trimmed.length < 3)
     return { valid: false, error: "Name must be at least 3 characters" };
-  }
-  if (trimmed.length > 50) {
+  if (trimmed.length > 50)
     return { valid: false, error: "Name too long (max 50 characters)" };
-  }
-  if (!/^[a-zA-Z\s.'-]+$/.test(trimmed)) {
-    return { valid: false, error: "Name can only contain letters and spaces" };
-  }
+  if (!/^[a-zA-Z\s.'-]+$/.test(trimmed))
+    return {
+      valid: false,
+      error: "Name can only contain letters and spaces",
+    };
+  if (!/\s/.test(trimmed))
+    return { valid: false, error: "Please enter your full name" };
   return { valid: true };
 };
 
 export const validateAddress = (address) => {
-  if (!address || !address.trim()) {
+  if (!address || !address.trim())
     return { valid: false, error: "Address is required" };
-  }
   const trimmed = address.trim();
-  if (trimmed.length < 10) {
+  if (trimmed.length < 10)
     return {
       valid: false,
-      error:
-        "Address too short (min 10 characters). Include house, street, area",
+      error: "Address too short - include house, street, area (min 10 chars)",
     };
-  }
-  if (trimmed.length > 200) {
+  if (trimmed.length > 200)
     return { valid: false, error: "Address too long (max 200 characters)" };
-  }
   return { valid: true };
 };
 
@@ -80,7 +92,10 @@ export const lookupPincode = async (pincode) => {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return { success: false, error: "Pincode service unavailable" };
+      return {
+        success: false,
+        error: "Cannot verify pincode - please try again",
+      };
     }
 
     const json = await response.json();
@@ -92,7 +107,10 @@ export const lookupPincode = async (pincode) => {
       !json[0].PostOffice ||
       json[0].PostOffice.length === 0
     ) {
-      return { success: false, error: "Pincode not found" };
+      return {
+        success: false,
+        error: "Pincode not found - please enter a valid Indian pincode",
+      };
     }
 
     const office = json[0].PostOffice[0];
@@ -109,26 +127,42 @@ export const lookupPincode = async (pincode) => {
     return { success: true, data };
   } catch (err) {
     if (err.name === "AbortError") {
-      return { success: false, error: "Pincode check timed out" };
+      return {
+        success: false,
+        error: "Pincode check timed out - please try again",
+      };
     }
-    return { success: false, error: "Could not verify pincode" };
+    return {
+      success: false,
+      error: "Could not verify pincode - check internet connection",
+    };
   }
 };
 
 export const validateIFSC = (ifsc) => {
   if (!ifsc) return { valid: false, error: "IFSC code is required" };
   const cleaned = ifsc.toUpperCase().trim();
-  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleaned)) {
-    return { valid: false, error: "Invalid IFSC format (e.g. SBIN0001234)" };
-  }
+  if (cleaned.length !== 11)
+    return { valid: false, error: "IFSC must be exactly 11 characters" };
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleaned))
+    return {
+      valid: false,
+      error: "Invalid IFSC format (e.g. SBIN0001234)",
+    };
   return { valid: true, value: cleaned };
 };
 
 export const validateAccountNumber = (acc) => {
   if (!acc) return { valid: false, error: "Account number is required" };
   const cleaned = acc.replace(/\s/g, "");
-  if (!/^\d{9,18}$/.test(cleaned)) {
-    return { valid: false, error: "Account number must be 9 to 18 digits" };
-  }
+  if (!/^\d+$/.test(cleaned))
+    return { valid: false, error: "Account number must contain only digits" };
+  if (cleaned.length < 9)
+    return {
+      valid: false,
+      error: `Account number too short (${cleaned.length}/9 minimum)`,
+    };
+  if (cleaned.length > 18)
+    return { valid: false, error: "Account number too long (max 18 digits)" };
   return { valid: true, value: cleaned };
 };
