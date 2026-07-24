@@ -25,8 +25,7 @@ export default defineConfig({
       manifest: {
         name: "Talish Clothes - Fashion & Lifestyle",
         short_name: "Talish",
-        description:
-          "Talish Clothes - Shop trendy fashion, accessories, watches and perfumes online in India",
+        description: "Talish Clothes - Shop trendy fashion online",
         theme_color: "#831843",
         background_color: "#ffffff",
         display: "standalone",
