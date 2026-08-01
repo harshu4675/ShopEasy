@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, formatPrice } from "../utils/api";
 import { showToast } from "../utils/toast";
 import Loader from "../components/Loader";
+import { matIcon } from "../utils/fonts";
 
 const Wishlist = () => {
   const [wishlist, setWishlist] = useState(null);
@@ -73,8 +74,11 @@ const Wishlist = () => {
       >
         <div className="container mx-auto px-4">
           <div className="rounded-[12px] bg-white px-8 py-16 text-center shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-            <span className="mb-4 block text-[4rem] leading-none text-[#9ca3af]">
-              &#9825;
+            <span
+              style={matIcon}
+              className="mb-4 block text-[4rem] leading-none text-[#9ca3af]"
+            >
+              favorite_border
             </span>
             <h2 className="mb-2 text-[1.5rem] font-semibold text-[#1f2937]">
               Your wishlist is empty
@@ -119,8 +123,9 @@ const Wishlist = () => {
                 onClick={() => removeItem(product._id)}
                 title="Remove from wishlist"
                 className="absolute right-3 top-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-white text-[16px] text-[#6b7280] shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-200 hover:bg-[#ef4444] hover:text-white"
+                style={matIcon}
               >
-                &#x2715;
+                close
               </button>
 
               <Link
@@ -162,7 +167,19 @@ const Wishlist = () => {
 
                 <div className="mb-[10px] flex items-center gap-[6px]">
                   <span className="text-[14px] text-[#ffc107]">
-                    {"★".repeat(Math.round(product.rating))}
+                    {Array.from({ length: 5 }).map((_, i) => (
+                <span
+                  key={i}
+                  style={matIcon}
+                  className={`text-[14px] ${
+                    i < Math.round(product.rating)
+                      ? "text-amber-400"
+                      : "text-gray-300"
+                  }`}
+                >
+                  star
+                </span>
+              ))}
                   </span>
                   <span className="text-[12px] text-[#6b7280]">
                     ({product.numReviews})

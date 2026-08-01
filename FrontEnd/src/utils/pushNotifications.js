@@ -77,8 +77,23 @@ export const subscribeToPush = async () => {
 
     return { success: true };
   } catch (err) {
-    console.error("Push subscribe error:", err);
-    return { success: false, error: err.message };
+    /*
+     * AbortError from pushManager.subscribe means the browser could not reach
+     * its push service. That happens routinely on localhost, behind blockers,
+     * and on browsers where the service is unavailable. It is an environment
+     * condition rather than a fault in the app, so it is reported quietly and
+     * the caller simply gets success: false.
+     */
+    const unavailable =
+      err?.name === "AbortError" || err?.name === "NotAllowedError";
+
+    if (unavailable) {
+      console.info("Push notifications unavailable:", err.name);
+    } else {
+      console.error("Push subscribe error:", err);
+    }
+
+    return { success: false, error: err.message, unavailable };
   }
 };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api, formatPrice } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import Loader from "../../components/Loader";
+import { matIcon } from "../../utils/fonts";
 
 const AllOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -233,7 +234,7 @@ const AllOrders = () => {
                       {order.razorpayPaymentId && (
                         <div className="mt-1">
                           <small className="text-[0.7rem] text-gray-600 bg-[#f0f0f0] py-[0.15rem] px-[0.4rem] rounded">
-                            💳 {order.razorpayPaymentId.slice(0, 15)}...
+                            <span style={matIcon} className="mr-1 align-middle text-[16px]">credit_card</span>{order.razorpayPaymentId.slice(0, 15)}...
                           </small>
                         </div>
                       )}
@@ -285,7 +286,7 @@ const AllOrders = () => {
                       {order.paymentStatus === "Refund Requested" && (
                         <div className="mt-1">
                           <small className="text-warning font-medium">
-                            ⚠️ Bank details submitted
+                            <span style={matIcon} className="mr-1 align-middle text-[16px]">warning</span>Bank details submitted
                           </small>
                         </div>
                       )}
@@ -354,7 +355,7 @@ const AllOrders = () => {
               {/* Order Status Section */}
               <div className="bg-white p-6 rounded-lg mb-4 border border-[#e0e0e0]">
                 <h3 className="m-0 mb-4 text-gray-800 text-[1.1rem] border-b-2 border-[#f0f0f0] pb-2">
-                  📦 Order Status
+                  <span style={matIcon} className="mr-1 align-middle text-[16px]">inventory_2</span>Order Status
                 </h3>
                 <div className="flex gap-2 mb-4 flex-wrap md:flex-col">
                   <span
@@ -400,7 +401,7 @@ const AllOrders = () => {
               {selectedOrder.refundDetails?.bankDetails && (
                 <div className="refund-bank-gradient border-2 border-[#ffc107] rounded-md p-6 mb-4">
                   <h3 className="m-0 mb-4 text-[#856404] text-[1.1rem] border-b-2 border-[#f0f0f0] pb-2">
-                    🏦 Refund Bank Details
+                    <span style={matIcon} className="mr-1 align-middle text-[16px]">account_balance</span>Refund Bank Details
                   </h3>
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4 mb-4 md:grid-cols-1">
                     <div className="bg-white py-3 px-4 rounded-lg border-l-[3px] border-[#ffc107]">
@@ -509,7 +510,7 @@ const AllOrders = () => {
               {/* Customer Details */}
               <div className="bg-white p-6 rounded-lg mb-4 border border-[#e0e0e0]">
                 <h3 className="m-0 mb-4 text-gray-800 text-[1.1rem] border-b-2 border-[#f0f0f0] pb-2">
-                  👤 Customer Details
+                  <span style={matIcon} className="mr-1 align-middle text-[16px]">person</span>Customer Details
                 </h3>
                 <p className="my-2 text-gray-600">
                   <strong className="text-gray-800 mr-2">Name:</strong>
@@ -528,7 +529,7 @@ const AllOrders = () => {
               {/* Shipping Address */}
               <div className="bg-white p-6 rounded-lg mb-4 border border-[#e0e0e0]">
                 <h3 className="m-0 mb-4 text-gray-800 text-[1.1rem] border-b-2 border-[#f0f0f0] pb-2">
-                  📍 Shipping Address
+                  <span style={matIcon} className="mr-1 align-middle text-[16px]">location_on</span>Shipping Address
                 </h3>
                 <p className="my-2 text-gray-600">
                   {selectedOrder.shippingAddress.fullName}
@@ -549,7 +550,7 @@ const AllOrders = () => {
               {/* Order Items */}
               <div className="bg-white p-6 rounded-lg mb-4 border border-[#e0e0e0]">
                 <h3 className="m-0 mb-4 text-gray-800 text-[1.1rem] border-b-2 border-[#f0f0f0] pb-2">
-                  📦 Order Items
+                  <span style={matIcon} className="mr-1 align-middle text-[16px]">inventory_2</span>Order Items
                 </h3>
                 <div className="flex flex-col gap-4">
                   {selectedOrder.items.map((item, index) => (
@@ -588,7 +589,7 @@ const AllOrders = () => {
               {/* Price Breakdown */}
               <div className="bg-white p-6 rounded-lg mb-4 border border-[#e0e0e0]">
                 <h3 className="m-0 mb-4 text-gray-800 text-[1.1rem] border-b-2 border-[#f0f0f0] pb-2">
-                  💰 Price Breakdown
+                  <span style={matIcon} className="mr-1 align-middle text-[16px]">payments</span>Price Breakdown
                 </h3>
                 <div className="bg-gray-100 p-4 rounded-lg">
                   <div className="flex justify-between py-2 border-b border-[#e0e0e0]">
@@ -621,7 +622,7 @@ const AllOrders = () => {
                 selectedOrder.deliveryUpdates.length > 0 && (
                   <div className="bg-white p-6 rounded-lg mb-4 border border-[#e0e0e0]">
                     <h3 className="m-0 mb-4 text-gray-800 text-[1.1rem] border-b-2 border-[#f0f0f0] pb-2">
-                      🚚 Delivery Timeline
+                      <span style={matIcon} className="mr-1 align-middle text-[16px]">local_shipping</span>Delivery Timeline
                     </h3>
                     <div className="relative pl-8 timeline-line">
                       {selectedOrder.deliveryUpdates.map((update, index) => (
@@ -644,7 +645,7 @@ const AllOrders = () => {
                             )}
                             {update.location && (
                               <p className="text-[#007bff] text-sm my-1">
-                                📍 {update.location}
+                                <span style={matIcon} className="mr-1 align-middle text-[16px]">location_on</span>{update.location}
                               </p>
                             )}
                             <p className="text-gray-400 text-[0.75rem] mt-1 mb-0">

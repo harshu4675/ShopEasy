@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import Loader from "../../components/Loader";
+import { matIcon } from "../../utils/fonts";
 
 const AllReviews = () => {
   const [reviews, setReviews] = useState([]);
@@ -78,9 +79,18 @@ const AllReviews = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="text-lg text-[#ffc107]">
-                    {"★".repeat(review.rating)}
-                    {"☆".repeat(5 - review.rating)}
+                  <div className="flex text-[#ffc107]">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span
+                        key={i}
+                        style={matIcon}
+                        className={`text-[18px] ${
+                          i < review.rating ? "text-amber-400" : "text-gray-300"
+                        }`}
+                      >
+                        star
+                      </span>
+                    ))}
                   </div>
                 </div>
 
@@ -113,7 +123,7 @@ const AllReviews = () => {
                   </span>
                   {review.isVerifiedPurchase && (
                     <span className="bg-[#e8f5e9] text-[#2e7d32] py-1 px-2.5 rounded-[50px] text-[11px] font-semibold">
-                      ✓ Verified
+                      <span style={matIcon} className="mr-1 align-middle text-[14px]">verified</span>Verified
                     </span>
                   )}
                   <button

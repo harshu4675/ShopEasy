@@ -265,13 +265,14 @@ const ProductDetails = () => {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <span
                     key={star}
+                    style={matIcon}
                     className={`text-[18px] max-md:text-[16px] max-[480px]:text-[14px] ${
                       star <= product.rating
                         ? "text-[#ffc107]"
                         : "text-[#e5e7eb]"
                     }`}
                   >
-                    &#9733;
+                    {"star"}
                   </span>
                 ))}
               </div>
@@ -586,7 +587,7 @@ const ProductDetails = () => {
                           : "text-[#e5e7eb]"
                       }`}
                     >
-                      &#9733;
+                      {"star"}
                     </button>
                   ))}
                 </div>

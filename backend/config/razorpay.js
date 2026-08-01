@@ -8,6 +8,6 @@ const razorpayInstance = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-console.log("✅ Razorpay initialized successfully");
+console.log("Razorpay initialized successfully");
 
 module.exports = razorpayInstance;

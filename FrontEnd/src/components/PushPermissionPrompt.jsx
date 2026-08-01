@@ -52,9 +52,18 @@ const PushPermissionPrompt = () => {
     if (result.success) {
       showToast("Notifications enabled", "success");
       setVisible(false);
-    } else {
-      showToast(result.error || "Could not enable notifications", "error");
+      return;
     }
+
+    if (result.unavailable) {
+      // The browser's push service is unreachable. Re-prompting cannot help,
+      // so dismiss and stop asking rather than showing a scary error.
+      localStorage.setItem(DISMISS_KEY, Date.now().toString());
+      setVisible(false);
+      return;
+    }
+
+    showToast(result.error || "Could not enable notifications", "error");
   };
 
   const handleDismiss = () => {

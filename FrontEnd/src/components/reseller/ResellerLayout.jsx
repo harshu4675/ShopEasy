@@ -11,12 +11,17 @@ import useGoogleFonts from "../../hooks/useGoogleFonts";
  * hub feels like part of the same product rather than a bolted-on module.
  */
 
+/**
+ * `primary` items appear on every screen size. The rest are secondary and are
+ * hidden on phones, where eight pills wrap into an unusable scrolling strip;
+ * they remain one tap away from the dashboard.
+ */
 const NAV = [
-  { to: "/reseller", icon: "dashboard", label: "Dashboard", exact: true },
-  { to: "/reseller/catalog", icon: "storefront", label: "Catalog" },
-  { to: "/reseller/products", icon: "inventory_2", label: "My Products" },
-  { to: "/reseller/orders", icon: "receipt_long", label: "Orders" },
-  { to: "/reseller/wallet", icon: "account_balance_wallet", label: "Wallet" },
+  { to: "/reseller", icon: "dashboard", label: "Home", exact: true, primary: true },
+  { to: "/reseller/catalog", icon: "storefront", label: "Catalog", primary: true },
+  { to: "/reseller/products", icon: "inventory_2", label: "Products", primary: true },
+  { to: "/reseller/orders", icon: "receipt_long", label: "Orders", primary: true },
+  { to: "/reseller/wallet", icon: "account_balance_wallet", label: "Wallet", primary: true },
   { to: "/reseller/analytics", icon: "analytics", label: "Analytics" },
   { to: "/reseller/referrals", icon: "group_add", label: "Referrals" },
   { to: "/reseller/customers", icon: "diversity_3", label: "Customers" },
@@ -73,6 +78,8 @@ const ResellerLayout = ({ title, subtitle, action, children }) => {
               key={item.to}
               to={item.to}
               className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold no-underline transition-all ${
+                item.primary ? "" : "max-md:hidden"
+              } ${
                 item.active
                   ? "text-white shadow-md"
                   : "bg-gray-100 text-gray-700 hover:bg-pink-50 hover:text-pink-600"

@@ -257,7 +257,19 @@ const ProductCard = ({ product }) => {
 
         <div className="mb-2 flex items-center gap-[6px] max-md:mb-[6px] max-[480px]:mb-1 max-[480px]:gap-1">
           <span className="text-[11px] tracking-[-1px] text-[#ffc107] max-md:text-[10px] max-[480px]:text-[9px]">
-            {"★".repeat(Math.round(product.rating))}
+            {Array.from({ length: 5 }).map((_, i) => (
+                <span
+                  key={i}
+                  style={matIcon}
+                  className={`text-[14px] ${
+                    i < Math.round(product.rating)
+                      ? "text-amber-400"
+                      : "text-gray-300"
+                  }`}
+                >
+                  star
+                </span>
+              ))}
           </span>
           <span className="text-[10px] font-medium text-[#9ca3af] max-md:text-[9px] max-[480px]:text-[8px]">
             ({product.numReviews})

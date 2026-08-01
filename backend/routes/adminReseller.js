@@ -298,7 +298,7 @@ router.patch(
         ),
         notify(
           reseller.user,
-          "Reseller application approved 🎉",
+          "Reseller application approved",
           `Your store "${reseller.storeName}" is live. Start sharing products and earning.`,
         ),
       ]);
@@ -653,7 +653,7 @@ router.patch(
 
       await notify(
         withdrawal.user,
-        "Payout sent 💸",
+        "Payout sent",
         `₹${withdrawal.netAmount} has been transferred. Reference: ${req.body.transactionReference}`,
       );
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { resellerAPI, getErrorMessage } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import { matIcon } from "../../utils/fonts";
@@ -72,7 +72,6 @@ const Field = ({ label, error, hint, children }) => (
 );
 
 const ResellerApply = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { reseller, loading: profileLoading, status } = useReseller();
 
@@ -95,6 +94,7 @@ const ResellerApply = () => {
     panNumber: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -166,14 +166,79 @@ const ResellerApply = () => {
           : undefined,
       });
 
-      showToast("Application submitted! We'll review it shortly.", "success");
-      navigate("/reseller", { replace: true });
+      showToast("Application submitted", "success");
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       showToast(getErrorMessage(err), "error");
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (submitted) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12"
+        style={{ fontFamily: "'Poppins', sans-serif" }}
+      >
+        <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm max-md:p-6">
+          <div
+            className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full"
+            style={{ background: "linear-gradient(135deg, #dcfce7, #bbf7d0)" }}
+          >
+            <span style={matIcon} className="text-[44px] text-emerald-600">
+              check_circle
+            </span>
+          </div>
+
+          <h1 className="m-0 mb-2 text-2xl font-extrabold text-gray-900 max-md:text-xl">
+            Thank you
+          </h1>
+          <p className="mx-auto m-0 mb-6 max-w-sm text-sm leading-relaxed text-gray-600">
+            Your reseller application has been submitted. We review applications
+            within 24 to 48 hours and will notify you as soon as your store is
+            live.
+          </p>
+
+          <div className="mb-6 rounded-xl bg-gray-50 p-4 text-left">
+            <p className="m-0 mb-3 text-[11px] font-bold uppercase tracking-wide text-gray-400">
+              What happens next
+            </p>
+            {[
+              { icon: "fact_check", text: "We verify your store and payout details" },
+              { icon: "notifications", text: "You get a notification once approved" },
+              { icon: "storefront", text: "Add products and start sharing your store" },
+            ].map((step, i) => (
+              <div key={step.icon} className="flex items-start gap-3 py-1.5">
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                  style={{ background: "linear-gradient(135deg, #831843, #ec4899)" }}
+                >
+                  {i + 1}
+                </span>
+                <span className="text-xs leading-relaxed text-gray-700">
+                  {step.text}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <PrimaryButton as="link" to="/reseller" icon="dashboard">
+              Go to reseller hub
+            </PrimaryButton>
+            <Link
+              to="/"
+              className="rounded-xl border-2 border-gray-200 bg-white px-5 py-2.5 text-sm font-bold text-gray-600 no-underline transition-all hover:bg-gray-50"
+            >
+              Continue shopping
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (profileLoading) {
     return (

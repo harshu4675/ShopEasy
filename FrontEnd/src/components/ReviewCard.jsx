@@ -1,4 +1,5 @@
 import React from "react";
+import { matIcon } from "../utils/fonts";
 
 const ReviewCard = ({ review, onDelete, isAdmin }) => {
   const formatDate = (date) => {
@@ -38,11 +39,12 @@ const ReviewCard = ({ review, onDelete, isAdmin }) => {
             {[1, 2, 3, 4, 5].map((star) => (
               <span
                 key={star}
+                style={matIcon}
                 className={`text-[16px] ${
                   star <= review.rating ? "text-[#ffc107]" : "text-[#d1d5db]"
                 }`}
               >
-                &#9733;
+                {"star"}
               </span>
             ))}
           </div>

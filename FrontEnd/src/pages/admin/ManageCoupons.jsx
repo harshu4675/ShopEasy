@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api, formatPrice } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import Loader from "../../components/Loader";
+import { matIcon } from "../../utils/fonts";
 
 const ManageCoupons = () => {
   const [coupons, setCoupons] = useState([]);
@@ -82,10 +83,10 @@ const ManageCoupons = () => {
     try {
       if (editingCoupon) {
         await api.put(`/coupons/${editingCoupon._id}`, formData);
-        showToast("Coupon updated successfully! 🎉", "success");
+        showToast("Coupon updated successfully!", "success");
       } else {
         await api.post("/coupons", formData);
-        showToast("Coupon created successfully! 🎉", "success");
+        showToast("Coupon created successfully!", "success");
       }
       resetForm();
       fetchCoupons();
@@ -146,7 +147,7 @@ const ManageCoupons = () => {
             }}
             className="inline-flex items-center justify-center gap-2 py-3.5 px-7 border-none rounded-md cursor-pointer font-[inherit] text-[15px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover"
           >
-            ➕ Add Coupon
+            <span style={matIcon} className="mr-1 align-middle text-[16px]">add</span>Add Coupon
           </button>
         </div>
 
@@ -162,7 +163,7 @@ const ManageCoupons = () => {
                   onClick={resetForm}
                   className="bg-transparent border-none text-2xl cursor-pointer text-gray-500 p-1 hover:text-gray-800"
                 >
-                  ✕
+                  <span style={matIcon}>close</span>
                 </button>
               </div>
 
@@ -345,7 +346,7 @@ const ManageCoupons = () => {
         {/* Coupons List */}
         {coupons.length === 0 ? (
           <div className="text-center py-20 px-5">
-            <span className="text-[80px] block mb-5 opacity-50">🎟️</span>
+            <span className="text-[80px] block mb-5 opacity-50"><span style={matIcon}>local_activity</span></span>
             <h3 className="text-[22px] mb-3 text-gray-700">No coupons yet</h3>
             <p className="text-gray-500 mb-6">
               Create your first coupon to offer discounts to customers

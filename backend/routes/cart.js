@@ -85,7 +85,7 @@ router.post("/add", auth, async (req, res) => {
       .populate("items.product")
       .populate("appliedCoupon");
 
-    // ✅ Clean cart before sending response
+    // Clean cart before sending response
     cart = await cleanCart(cart);
 
     res.json(cart);
@@ -134,7 +134,7 @@ router.put("/update", auth, async (req, res) => {
       .populate("items.product")
       .populate("appliedCoupon");
 
-    // ✅ Clean cart before sending response
+    // Clean cart before sending response
     await cleanCart(updatedCart);
 
     res.json(updatedCart);
@@ -175,7 +175,7 @@ router.delete("/remove/:productId", auth, async (req, res) => {
       .populate("items.product")
       .populate("appliedCoupon");
 
-    // ✅ Clean cart before sending response
+    // Clean cart before sending response
     await cleanCart(updatedCart);
 
     res.json(updatedCart);
@@ -207,7 +207,7 @@ router.post("/apply-coupon", auth, async (req, res) => {
       return res.status(404).json({ message: "Cart not found" });
     }
 
-    // ✅ Clean cart first
+    // Clean cart first
     await cleanCart(cart);
 
     if (cart.items.length === 0) {
@@ -252,7 +252,7 @@ router.delete("/remove-coupon", auth, async (req, res) => {
       .populate("items.product")
       .populate("appliedCoupon");
 
-    // ✅ Clean cart before sending response
+    // Clean cart before sending response
     await cleanCart(updatedCart);
 
     res.json(updatedCart);

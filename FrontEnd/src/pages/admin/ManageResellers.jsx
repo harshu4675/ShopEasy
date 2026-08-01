@@ -345,7 +345,7 @@ const ManageResellers = () => {
                               key={i}
                               className="m-0 text-[10px] font-medium text-rose-700"
                             >
-                              ⚠ {f.note}
+                              <span style={matIcon} className="mr-1 align-middle text-[16px]">warning</span>{f.note}
                             </p>
                           ))}
                         </div>

@@ -112,7 +112,7 @@ router.post("/orders/:id/delivery-update", auth, admin, async (req, res) => {
   }
 });
 
-// Dashboard stats - ✅ UPDATED WITH REFUND STATS
+// Dashboard stats - UPDATED WITH REFUND STATS
 router.get("/dashboard", auth, admin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: "user" });
@@ -140,7 +140,7 @@ router.get("/dashboard", auth, admin, async (req, res) => {
       orderStatus: "Cancelled",
     });
 
-    // ✅ NEW: Refund stats
+    // NEW: Refund stats
     const refundRequested = await Order.countDocuments({
       paymentStatus: "Refund Requested",
     });
@@ -171,9 +171,9 @@ router.get("/dashboard", auth, admin, async (req, res) => {
       processingOrders,
       deliveredOrders,
       cancelledOrders,
-      refundRequested, // ✅ NEW
-      refunded, // ✅ NEW
-      totalRefunded: totalRefunded[0]?.total || 0, // ✅ NEW
+      refundRequested, // NEW
+      refunded, // NEW
+      totalRefunded: totalRefunded[0]?.total || 0, // NEW
       recentOrders,
       lowStockProducts,
     });

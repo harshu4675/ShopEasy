@@ -3,12 +3,12 @@ const router = express.Router();
 const crypto = require("crypto");
 const razorpayInstance = require("../config/razorpay");
 
-// ⭐ Change this line:
-const auth = require("../middleware/auth"); // ← No curly braces, use 'auth' not 'protect'
+// Change this line:
+const auth = require("../middleware/auth"); // No curly braces, use 'auth' not 'protect'
 
 // Create Razorpay Order
 router.post("/create-order", auth, async (req, res) => {
-  // ← Use 'auth' here
+  // Use 'auth' here
   try {
     const { amount, currency = "INR" } = req.body;
 
@@ -38,7 +38,7 @@ router.post("/create-order", auth, async (req, res) => {
 
 // Verify Payment Signature
 router.post("/verify-payment", auth, async (req, res) => {
-  // ← Use 'auth' here
+  // Use 'auth' here
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       req.body;

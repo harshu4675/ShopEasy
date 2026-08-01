@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api, formatPrice } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import Loader from "../../components/Loader";
+import { matIcon } from "../../utils/fonts";
 
 const DeliveryManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -43,7 +44,7 @@ const DeliveryManagement = () => {
         `/admin/orders/${selectedOrder._id}/delivery-update`,
         updateForm,
       );
-      showToast("Delivery update added successfully! 📦", "success");
+      showToast("Delivery update added successfully!", "success");
       setUpdateForm({ status: "", location: "", description: "" });
       setSelectedOrder(null);
       fetchOrders();
@@ -77,14 +78,14 @@ const DeliveryManagement = () => {
 
   const getStatusIcon = (status) => {
     const icons = {
-      Placed: "📝",
-      Confirmed: "✅",
-      Processing: "⚙️",
-      Shipped: "📦",
-      "Out for Delivery": "🚚",
-      Delivered: "🎉",
+      Placed: "edit_note",
+      Confirmed: "check_circle",
+      Processing: "settings",
+      Shipped: "inventory_2",
+      "Out for Delivery": "local_shipping",
+      Delivered: "celebration",
     };
-    return icons[status] || "📋";
+    return icons[status] || "assignment";
   };
 
   const getStatusBadgeClass = (status) => {
@@ -107,7 +108,7 @@ const DeliveryManagement = () => {
         <div className="flex justify-between items-center mb-[30px] flex-wrap gap-5 md:flex-col md:items-start md:gap-4">
           <div>
             <h1 className="text-[28px] font-bold text-dark md:text-[22px]">
-              🚚 Delivery Management
+              <span style={matIcon} className="mr-1 align-middle text-[16px]">local_shipping</span>Delivery Management
             </h1>
             <p className="text-gray-500 mt-2">
               {orders.length} active orders to manage
@@ -117,7 +118,7 @@ const DeliveryManagement = () => {
 
         {orders.length === 0 ? (
           <div className="text-center py-20 px-5">
-            <span className="text-[80px] block mb-5 opacity-50">📦</span>
+            <span className="text-[80px] block mb-5 opacity-50"><span style={matIcon}>inventory_2</span></span>
             <h3 className="text-[22px] mb-3 text-gray-700">
               No active deliveries
             </h3>
@@ -154,9 +155,9 @@ const DeliveryManagement = () => {
                   <p className="my-1">
                     <strong>{order.shippingAddress.fullName}</strong>
                   </p>
-                  <p className="my-1">📱 {order.shippingAddress.phone}</p>
+                  <p className="my-1"><span style={matIcon} className="mr-1 align-middle text-[16px]">smartphone</span>{order.shippingAddress.phone}</p>
                   <p className="my-1">
-                    📍 {order.shippingAddress.address},{" "}
+                    <span style={matIcon} className="mr-1 align-middle text-[16px]">location_on</span>{order.shippingAddress.address},{" "}
                     {order.shippingAddress.city}
                   </p>
                   <p className="my-1">
@@ -192,7 +193,7 @@ const DeliveryManagement = () => {
 
                 {order.expectedDelivery && (
                   <div className="bg-[#e8f5e9] py-2.5 px-3.5 rounded-sm mb-4 text-[13px] text-[#2e7d32]">
-                    📅 Expected: {formatDate(order.expectedDelivery)}
+                    <span style={matIcon} className="mr-1 align-middle text-[16px]">event</span>Expected: {formatDate(order.expectedDelivery)}
                   </div>
                 )}
 
@@ -236,7 +237,7 @@ const DeliveryManagement = () => {
                       onClick={() => quickStatusUpdate(order._id, "Confirmed")}
                       className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-none rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-success text-white hover:bg-[#388e3c] hover:-translate-y-0.5 md:w-full md:justify-center"
                     >
-                      ✅ Confirm
+                      <span style={matIcon} className="mr-1 align-middle text-[16px]">check_circle</span>Confirm
                     </button>
                   )}
                   {order.orderStatus === "Confirmed" && (
@@ -244,7 +245,7 @@ const DeliveryManagement = () => {
                       onClick={() => quickStatusUpdate(order._id, "Processing")}
                       className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-none rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover md:w-full md:justify-center"
                     >
-                      ⚙️ Processing
+                      <span style={matIcon} className="mr-1 align-middle text-[16px]">settings</span>Processing
                     </button>
                   )}
                   {order.orderStatus === "Processing" && (
@@ -252,7 +253,7 @@ const DeliveryManagement = () => {
                       onClick={() => quickStatusUpdate(order._id, "Shipped")}
                       className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-none rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover md:w-full md:justify-center"
                     >
-                      📦 Ship
+                      <span style={matIcon} className="mr-1 align-middle text-[16px]">inventory_2</span>Ship
                     </button>
                   )}
                   {order.orderStatus === "Shipped" && (
@@ -262,7 +263,7 @@ const DeliveryManagement = () => {
                       }
                       className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-none rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover md:w-full md:justify-center"
                     >
-                      🚚 Out for Delivery
+                      <span style={matIcon} className="mr-1 align-middle text-[16px]">local_shipping</span>Out for Delivery
                     </button>
                   )}
                   {order.orderStatus === "Out for Delivery" && (
@@ -270,14 +271,14 @@ const DeliveryManagement = () => {
                       onClick={() => quickStatusUpdate(order._id, "Delivered")}
                       className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-none rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-success text-white hover:bg-[#388e3c] hover:-translate-y-0.5 md:w-full md:justify-center"
                     >
-                      🎉 Delivered
+                      <span style={matIcon} className="mr-1 align-middle text-[16px]">celebration</span>Delivered
                     </button>
                   )}
                   <button
                     onClick={() => setSelectedOrder(order)}
                     className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-2 border-gray-300 bg-white text-gray-800 rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap hover:border-primary hover:text-primary md:w-full md:justify-center"
                   >
-                    📝 Add Update
+                    <span style={matIcon} className="mr-1 align-middle text-[16px]">edit_note</span>Add Update
                   </button>
                 </div>
               </div>
@@ -295,7 +296,7 @@ const DeliveryManagement = () => {
                   onClick={() => setSelectedOrder(null)}
                   className="bg-transparent border-none text-2xl cursor-pointer text-gray-500 p-1 transition-all duration-300 ease-custom hover:text-gray-800"
                 >
-                  ✕
+                  <span style={matIcon}>close</span>
                 </button>
               </div>
 

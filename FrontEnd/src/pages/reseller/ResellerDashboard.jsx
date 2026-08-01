@@ -127,6 +127,62 @@ const ResellerDashboard = () => {
         </>
       ) : (
         <>
+          {/* Share your store */}
+          <div
+            className="mt-4 overflow-hidden rounded-xl p-4 text-white"
+            style={{
+              background:
+                "linear-gradient(135deg, #4a0e2e 0%, #831843 60%, #be185d 100%)",
+            }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="m-0 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-pink-200">
+                  <span style={matIcon} className="text-[16px]">
+                    link
+                  </span>
+                  Your store link
+                </p>
+                <p className="m-0 mt-1 truncate font-mono text-sm text-white/90">
+                  {storeUrl}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={copyStoreLink}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-4 py-2 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/25"
+                >
+                  <span style={matIcon} className="text-[16px]">
+                    {copied ? "check" : "content_copy"}
+                  </span>
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                <a
+                  href={storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-4 py-2 text-xs font-bold text-white no-underline backdrop-blur-md transition-all hover:bg-white/25"
+                >
+                  <span style={matIcon} className="text-[16px]">
+                    open_in_new
+                  </span>
+                  Open store
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Shop at ${reseller.storeName}: ${storeUrl}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg bg-[#25D366] px-4 py-2 text-xs font-bold text-white no-underline transition-all hover:brightness-110"
+                >
+                  <span style={matIcon} className="text-[16px]">
+                    share
+                  </span>
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+
           {/* Wallet */}
           <div className="grid grid-cols-4 gap-3 max-md:grid-cols-2">
             <StatCard
@@ -161,51 +217,6 @@ const ResellerDashboard = () => {
               sub={`₹${wallet?.monthEarnings ?? 0} this month`}
               gradient="linear-gradient(135deg, #831843, #ec4899)"
             />
-          </div>
-
-          {/* Share your store */}
-          <div
-            className="mt-4 overflow-hidden rounded-xl p-4 text-white"
-            style={{
-              background:
-                "linear-gradient(135deg, #4a0e2e 0%, #831843 60%, #be185d 100%)",
-            }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="m-0 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-pink-200">
-                  <span style={matIcon} className="text-[16px]">
-                    link
-                  </span>
-                  Your store link
-                </p>
-                <p className="m-0 mt-1 truncate font-mono text-sm text-white/90">
-                  {storeUrl}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={copyStoreLink}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-4 py-2 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/25"
-                >
-                  <span style={matIcon} className="text-[16px]">
-                    {copied ? "check" : "content_copy"}
-                  </span>
-                  {copied ? "Copied" : "Copy"}
-                </button>
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Shop at ${reseller.storeName}: ${storeUrl}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg bg-[#25D366] px-4 py-2 text-xs font-bold text-white no-underline transition-all hover:brightness-110"
-                >
-                  <span style={matIcon} className="text-[16px]">
-                    share
-                  </span>
-                  WhatsApp
-                </a>
-              </div>
-            </div>
           </div>
 
           {/* 30-day performance */}

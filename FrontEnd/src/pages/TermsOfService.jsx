@@ -269,7 +269,7 @@ const TermsOfService = () => {
                     ].map((item) => (
                       <li
                         key={item}
-                        className="relative border-b border-[rgba(102,126,234,0.06)] py-[10px] pl-7 text-[14px] text-[#4b5563] last:border-b-0 before:absolute before:left-0 before:font-bold before:text-[#10b981] before:content-['✓']"
+                        className="relative border-b border-[rgba(102,126,234,0.06)] py-[10px] pl-7 text-[14px] text-[#4b5563] last:border-b-0 before:absolute before:left-0 before:font-bold before:text-[#10b981] before:content-['\2713']"
                       >
                         {item}
                       </li>
@@ -406,7 +406,7 @@ const TermsOfService = () => {
                       ].map((item) => (
                         <li
                           key={item}
-                          className="relative border-b border-[rgba(102,126,234,0.06)] py-[10px] pl-7 text-[14px] text-[#4b5563] last:border-b-0 before:absolute before:left-0 before:font-bold before:text-[#10b981] before:content-['✓']"
+                          className="relative border-b border-[rgba(102,126,234,0.06)] py-[10px] pl-7 text-[14px] text-[#4b5563] last:border-b-0 before:absolute before:left-0 before:font-bold before:text-[#10b981] before:content-['\2713']"
                         >
                           {item}
                         </li>
@@ -426,7 +426,7 @@ const TermsOfService = () => {
                       ].map((item) => (
                         <li
                           key={item}
-                          className="relative border-b border-[rgba(102,126,234,0.06)] py-[10px] pl-7 text-[14px] text-[#4b5563] last:border-b-0 before:absolute before:left-0 before:font-bold before:text-[#ef4444] before:content-['✗']"
+                          className="relative border-b border-[rgba(102,126,234,0.06)] py-[10px] pl-7 text-[14px] text-[#4b5563] last:border-b-0 before:absolute before:left-0 before:font-bold before:text-[#ef4444] before:content-['\2717']"
                         >
                           {item}
                         </li>
