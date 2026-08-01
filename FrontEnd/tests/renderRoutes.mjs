@@ -149,6 +149,21 @@ const ROUTE_TABLE = [
   [/\/reviews\//, () => []],
   [/\/orders/, () => []],
   [/\/coupons$/, () => []],
+  [/\/admin\/resellers\/stats\/overview$/, () => ({
+    success: true,
+    data: {
+      resellers: { pending: 3, approved: 7 },
+      totalResellers: 10,
+      wallet: { available: 5000, pending: 1200, locked: 0, lifetime: 8000, withdrawn: 3000 },
+      pendingWithdrawals: { count: 2, amount: 1500 },
+      commissions: { gross: 4000, platformFee: 1000, net: 3000, orders: 20 },
+    },
+  })],
+  [/\/admin\/dashboard$/, () => ({
+    totalProducts: 66, totalOrders: 2, totalUsers: 2, totalRevenue: 5000,
+    pendingOrders: 1, processingOrders: 0, deliveredOrders: 1, cancelledOrders: 0,
+    refundRequested: 0, recentOrders: [], lowStockProducts: [],
+  })],
   [/^\/api\/admin/, () => paginated([])],
 ];
 
@@ -175,7 +190,7 @@ const EXPECT = {
   "/reseller": /Test Store|Reseller/i,
   "/reseller/catalog": /Test Product/,
   "/reseller/products": /Test Product/,
-  "/admin/dashboard": /Dashboard|Admin/i,
+  "/admin/dashboard": /Resellers/,
 };
 
 fs.writeFileSync(
