@@ -1,27 +1,16 @@
-import React, { useEffect } from "react";
+import React, { memo } from "react";
 import { Link } from "react-router-dom";
 import Logo from "./Logo";
 import { FaFacebookF, FaInstagram } from "react-icons/fa";
-const matIcon = {
-  fontFamily: '"Material Symbols Outlined"',
-  fontWeight: "normal",
-  fontStyle: "normal",
-  lineHeight: 1,
-  display: "inline-block",
-};
+import NewsletterSignup from "./NewsletterSignup";
+import { matIcon } from "../utils/fonts";
+import useGoogleFonts from "../hooks/useGoogleFonts";
 
 const Footer = () => {
-  useEffect(() => {
-    const fontId = "footer-google-fonts";
-    if (!document.getElementById(fontId)) {
-      const link = document.createElement("link");
-      link.id = fontId;
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap";
-      document.head.appendChild(link);
-    }
-  }, []);
+  useGoogleFonts(
+    "footer-google-fonts",
+    "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap",
+  );
 
   const shopLinks = [
     { to: "/products?category=Men's Clothing", label: "Men's Fashion" },
@@ -72,7 +61,7 @@ const Footer = () => {
       />
 
       <div className="relative z-10 pb-10 pt-[60px] max-[900px]:pb-[30px] max-[900px]:pt-[50px] max-md:pb-[30px] max-md:pt-10 max-[480px]:pb-[25px] max-[480px]:pt-[35px] max-[380px]:pb-5 max-[380px]:pt-[30px]">
-        <div className="mx-auto grid max-w-[1400px] grid-cols-[2fr_1fr_1fr] gap-[50px] px-5 max-[1024px]:grid-cols-[1.5fr_1fr_1fr] max-[1024px]:gap-10 max-[900px]:grid-cols-2 max-[900px]:gap-10 max-md:grid-cols-1 max-md:gap-[35px] max-[480px]:gap-[30px] max-[480px]:px-4 max-[380px]:gap-[30px] max-[380px]:px-[14px]">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-[2fr_1fr_1fr_1.4fr] gap-[50px] px-5 max-[1024px]:grid-cols-[1.5fr_1fr_1fr_1.3fr] max-[1024px]:gap-10 max-[900px]:grid-cols-2 max-[900px]:gap-10 max-md:grid-cols-1 max-md:gap-[35px] max-[480px]:gap-[30px] max-[480px]:px-4 max-[380px]:gap-[30px] max-[380px]:px-[14px]">
           <div className="max-w-[400px] max-[900px]:col-span-2 max-[900px]:max-w-full max-[900px]:text-center max-md:col-span-1 max-md:text-center">
             <Logo size="default" />
             <p className="mb-6 mt-5 text-[14px] leading-[1.7] text-white/70 max-[900px]:mx-auto max-[900px]:max-w-[500px] max-[480px]:mt-4 max-[480px]:text-[13px] max-[380px]:text-[12px]">
@@ -164,6 +153,8 @@ const Footer = () => {
               </ul>
             </div>
           ))}
+
+          <NewsletterSignup source="footer" />
         </div>
       </div>
 
@@ -214,4 +205,5 @@ const Footer = () => {
   );
 };
 
-export default Footer;
+/** Static content — memoised so route changes never re-render the footer. */
+export default memo(Footer);

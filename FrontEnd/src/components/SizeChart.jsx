@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { getChartTypeForCategory } from "../utils/sizeChart";
 
 const matIcon = {
   fontFamily: '"Material Symbols Outlined"',
@@ -62,16 +63,6 @@ const CHARTS = {
     ],
     note: "Measure your foot from heel to longest toe. Add 0.3 inches for comfort.",
   },
-};
-
-export const getChartTypeForCategory = (category) => {
-  if (!category) return null;
-  const c = category.toLowerCase();
-  if (c.includes("women")) return "women";
-  if (c.includes("men") && !c.includes("women")) return "men";
-  if (c.includes("kids") || c.includes("child")) return "kids";
-  if (c.includes("footwear") || c.includes("shoe")) return "footwear";
-  return null;
 };
 
 const SizeChart = ({ isOpen, onClose, category }) => {

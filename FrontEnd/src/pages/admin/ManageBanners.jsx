@@ -200,7 +200,7 @@ const ManageBanners = () => {
       const orders = banners.map((b, i) => ({ id: b._id, order: i }));
       await bannersAPI.reorder(orders);
       showToast("Order saved", "success");
-    } catch (err) {
+    } catch {
       showToast("Failed to save order", "error");
       fetchBanners();
     }
@@ -309,6 +309,8 @@ const ManageBanners = () => {
                     src={banner.image}
                     alt={banner.title || "Banner"}
                     className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   {(banner.title || banner.subtitle) && (
                     <div
@@ -665,6 +667,8 @@ const ManageBanners = () => {
                         src={imagePreview}
                         alt="Preview"
                         className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <div
                         className="absolute inset-0"

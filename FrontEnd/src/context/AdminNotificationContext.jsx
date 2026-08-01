@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { api } from "../utils/api";
 import { useAuth } from "./AuthContext";
+import usePolling from "../hooks/usePolling";
 
 const defaultValue = {
   adminNotifications: [],
@@ -79,14 +80,15 @@ export const AdminNotificationProvider = ({ children }) => {
       lastSeenIdRef.current = null;
       shownToastIdsRef.current = new Set();
       fetchAdminNotifications();
-      const interval = setInterval(fetchAdminNotifications, 15000);
-      return () => clearInterval(interval);
-    } else {
-      setAdminNotifications([]);
-      setAdminUnreadCount(0);
-      setAdminToasts([]);
+      return;
     }
+
+    setAdminNotifications([]);
+    setAdminUnreadCount(0);
+    setAdminToasts([]);
   }, [isAdmin, fetchAdminNotifications]);
+
+  usePolling(fetchAdminNotifications, 15000, isAdmin);
 
   const markAdminAsRead = async (id) => {
     try {

@@ -57,6 +57,18 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+
+    /**
+     * Reseller programme link. `isReseller` is a denormalised convenience flag
+     * so auth middleware and the UI can branch without an extra lookup; the
+     * authoritative record is the Reseller document.
+     */
+    isReseller: { type: Boolean, default: false },
+    resellerProfile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Reseller",
+    },
+
     addresses: [addressSchema],
 
     // Refresh Tokens (for remember me)

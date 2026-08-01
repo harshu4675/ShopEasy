@@ -94,7 +94,7 @@ const EditProduct = () => {
       setAvailableSubCategories(
         selected?.subCategories?.filter((s) => s.isActive !== false) || [],
       );
-    } catch (error) {
+    } catch {
       showToast("Error loading product", "error");
       navigate("/admin/products");
     } finally {
@@ -495,6 +495,8 @@ const EditProduct = () => {
                       src={img}
                       alt={`Current ${index + 1}`}
                       className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     {index === 0 && (
                       <span
@@ -550,6 +552,8 @@ const EditProduct = () => {
                       src={URL.createObjectURL(file)}
                       alt={`New ${index + 1}`}
                       className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <span className="absolute bottom-0 left-0 right-0 bg-green-500 py-1 text-center text-[10px] font-bold text-white">
                       New

@@ -56,7 +56,7 @@ const Cart = () => {
         response = await api.delete(
           `/cart/remove/${productId}?size=${encodeURIComponent(size || "")}&color=${encodeURIComponent(color || "")}`,
         );
-      } catch (err) {
+      } catch {
         response = await api.delete(`/cart/remove/${productId}`, {
           data: { size, color },
         });
@@ -70,7 +70,7 @@ const Cart = () => {
       try {
         await fetchCart();
         showToast("Please try again", "warning");
-      } catch (fetchError) {
+      } catch {
         showToast("Error removing item", "error");
       }
     } finally {
@@ -224,6 +224,8 @@ const Cart = () => {
                       src={item.product.images?.[0] || "/placeholder.jpg"}
                       alt={item.product.name || "Product"}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </Link>
 

@@ -4,8 +4,9 @@ import React, {
   useEffect,
   useCallback,
   useContext,
+  useMemo,
 } from "react";
-import { api } from "../utils/api";
+import { api, invalidateCache } from "../utils/api";
 
 export const AuthContext = createContext(null);
 
@@ -17,6 +18,8 @@ export const AuthProvider = ({ children }) => {
   const clearAuth = useCallback(() => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
+    // Drop every cached response so the next user never sees stale data.
+    invalidateCache();
     setUser(null);
     setIsAuthenticated(false);
   }, []);
@@ -37,7 +40,7 @@ export const AuthProvider = ({ children }) => {
         } else {
           clearAuth();
         }
-      } catch (error) {
+      } catch {
         try {
           const refreshResponse = await api.post("/auth/refresh-token");
           if (refreshResponse.data.success) {
@@ -70,25 +73,22 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [checkAuth]);
 
-  const sendRegisterOTP = async (
-    name,
-    email,
-    password,
-    phone,
-    rememberMe = false,
-  ) => {
-    const response = await api.post("/auth/send-otp", {
-      name,
-      email,
-      password,
-      phone,
-      rememberMe,
-      purpose: "register",
-    });
-    return response.data;
-  };
+  const sendRegisterOTP = useCallback(
+    async (name, email, password, phone, rememberMe = false) => {
+      const response = await api.post("/auth/send-otp", {
+        name,
+        email,
+        password,
+        phone,
+        rememberMe,
+        purpose: "register",
+      });
+      return response.data;
+    },
+    [],
+  );
 
-  const verifyRegisterOTP = async (email, otp) => {
+  const verifyRegisterOTP = useCallback(async (email, otp) => {
     const response = await api.post("/auth/verify-otp-register", {
       email,
       otp,
@@ -103,26 +103,26 @@ export const AuthProvider = ({ children }) => {
     }
 
     return response.data;
-  };
+  }, []);
 
-  const sendResetOTP = async (email) => {
+  const sendResetOTP = useCallback(async (email) => {
     const response = await api.post("/auth/send-otp", {
       email,
       purpose: "reset-password",
     });
     return response.data;
-  };
+  }, []);
 
-  const verifyResetOTP = async (email, otp, newPassword) => {
+  const verifyResetOTP = useCallback(async (email, otp, newPassword) => {
     const response = await api.post("/auth/verify-otp-reset", {
       email,
       otp,
       newPassword,
     });
     return response.data;
-  };
+  }, []);
 
-  const login = async (phone, password, rememberMe = false) => {
+  const login = useCallback(async (phone, password, rememberMe = false) => {
     const response = await api.post("/auth/login", {
       phone,
       password,
@@ -140,17 +140,17 @@ export const AuthProvider = ({ children }) => {
     }
 
     return response.data;
-  };
+  }, []);
 
-  const changePassword = async (currentPassword, newPassword) => {
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
     const response = await api.put("/auth/change-password", {
       currentPassword,
       newPassword,
     });
     return response.data;
-  };
+  }, []);
 
-  const updateProfile = async (profileData) => {
+  const updateProfile = useCallback(async (profileData) => {
     const response = await api.put("/auth/profile", profileData);
     if (response.data.success && response.data.data) {
       const updatedUser = response.data.data.user || response.data.data;
@@ -158,7 +158,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }
     return response.data;
-  };
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -169,36 +169,57 @@ export const AuthProvider = ({ children }) => {
     }
   }, [clearAuth]);
 
-  const updateUser = (userData) => {
+  const updateUser = useCallback((userData) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
-  };
+  }, []);
 
-  const getRememberedPhone = () =>
-    localStorage.getItem("rememberedPhone") || "";
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated,
-        sendRegisterOTP,
-        verifyRegisterOTP,
-        sendResetOTP,
-        verifyResetOTP,
-        login,
-        logout,
-        checkAuth,
-        updateProfile,
-        updateUser,
-        changePassword,
-        getRememberedPhone,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const getRememberedPhone = useCallback(
+    () => localStorage.getItem("rememberedPhone") || "",
+    [],
   );
+
+  /**
+   * Memoised context value. Previously a fresh object literal was created on
+   * every AuthProvider render, which cascaded a re-render through every
+   * consumer (navbar, product cards, cart, checkout) even when nothing changed.
+   */
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthenticated,
+      sendRegisterOTP,
+      verifyRegisterOTP,
+      sendResetOTP,
+      verifyResetOTP,
+      login,
+      logout,
+      checkAuth,
+      updateProfile,
+      updateUser,
+      changePassword,
+      getRememberedPhone,
+    }),
+    [
+      user,
+      loading,
+      isAuthenticated,
+      sendRegisterOTP,
+      verifyRegisterOTP,
+      sendResetOTP,
+      verifyResetOTP,
+      login,
+      logout,
+      checkAuth,
+      updateProfile,
+      updateUser,
+      changePassword,
+      getRememberedPhone,
+    ],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

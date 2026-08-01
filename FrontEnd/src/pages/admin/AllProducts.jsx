@@ -17,7 +17,7 @@ const AllProducts = () => {
     try {
       const response = await api.get("/products");
       setProducts(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching products", "error");
     } finally {
       setLoading(false);
@@ -31,7 +31,7 @@ const AllProducts = () => {
       await api.delete(`/products/${id}`);
       setProducts(products.filter((p) => p._id !== id));
       showToast("Product deleted successfully", "success");
-    } catch (error) {
+    } catch {
       showToast("Error deleting product", "error");
     }
   };
@@ -115,6 +115,8 @@ const AllProducts = () => {
                           src={product.images[0]}
                           alt={product.name}
                           className="w-[60px] h-[70px] object-cover rounded-sm"
+                          loading="lazy"
+                          decoding="async"
                         />
                       </td>
                       <td className="py-4 px-5 border-b border-gray-200">
@@ -191,6 +193,8 @@ const AllProducts = () => {
                       src={product.images[0]}
                       alt={product.name}
                       className="w-20 h-[100px] object-cover rounded-sm flex-shrink-0 sm:w-[70px] sm:h-[85px]"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-[15px] font-semibold m-0 mb-1 leading-[1.3] line-clamp-2 sm:text-sm">

@@ -16,6 +16,14 @@ const orderItemSchema = new mongoose.Schema({
   size: String,
   color: String,
   image: String,
+
+  /* --- Reseller attribution (optional; absent on ordinary orders) --- */
+  resellerProduct: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ResellerProduct",
+  },
+  /** Catalogue price at order time — the reseller margin is price - basePrice. */
+  basePrice: Number,
 });
 
 const deliveryUpdateSchema = new mongoose.Schema({
@@ -144,11 +152,35 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Coupon",
     },
+
+    /* ---------------- Reseller attribution ---------------- */
+    /**
+     * Set when the order originated from a reseller's shared link or store.
+     * Nullable and indexed sparsely, so existing orders and normal storefront
+     * orders are completely unaffected.
+     */
+    reseller: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Reseller",
+      index: true,
+    },
+    resellerCode: String,
+    /** Sum of reseller markup across items, computed at order creation. */
+    resellerMargin: { type: Number, default: 0, min: 0 },
+    /** Guard so commission is credited exactly once per order. */
+    commissionProcessed: { type: Boolean, default: false },
   },
   {
     timestamps: true,
   },
 );
+
+/* Reseller dashboards filter by reseller + status + recency. */
+orderSchema.index({ reseller: 1, createdAt: -1 });
+orderSchema.index({ reseller: 1, orderStatus: 1, createdAt: -1 });
+/* Speeds up "my orders" and the admin order queue. */
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ orderStatus: 1, createdAt: -1 });
 
 orderSchema.pre("save", async function (next) {
   if (!this.orderId) {

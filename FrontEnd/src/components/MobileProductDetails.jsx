@@ -5,7 +5,8 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import SizeChart, { getChartTypeForCategory } from "./SizeChart";
+import SizeChart from "./SizeChart";
+import { getChartTypeForCategory } from "../utils/sizeChart";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { api, formatPrice } from "../utils/api";
 import { AuthContext } from "../context/AuthContext";
@@ -82,7 +83,7 @@ const MobileProductDetails = () => {
       if (res.data.sizes?.length) setSelectedSize(res.data.sizes[0]);
       if (res.data.colors?.length) setSelectedColor(res.data.colors[0].name);
       addRecentlyViewed(res.data);
-    } catch (err) {
+    } catch {
       showToast("Error loading product", "error");
     } finally {
       setLoading(false);
@@ -92,7 +93,9 @@ const MobileProductDetails = () => {
   const fetchReviews = useCallback(async () => {
     try {
       const res = await api.get(`/reviews/product/${id}`);
-      setReviews(res.data);
+      // The endpoint returns an array, but an error payload is an object.
+      // Guarding here keeps a failed reviews call from crashing the page.
+      setReviews(Array.isArray(res.data) ? res.data : res.data?.reviews || []);
     } catch {
       // silent
     }
@@ -265,7 +268,7 @@ const MobileProductDetails = () => {
         showToast("Added to wishlist", "success");
       }
       if (refreshWishlist) refreshWishlist();
-    } catch (err) {
+    } catch {
       showToast("Error updating wishlist", "error");
     } finally {
       setActionLoading((p) => ({ ...p, wishlist: false }));
@@ -352,6 +355,8 @@ const MobileProductDetails = () => {
             src={product.images[imageIndex]}
             alt={product.name}
             className="h-full w-full object-contain"
+            loading="lazy"
+            decoding="async"
           />
           {discountPercent > 0 && (
             <span
@@ -703,6 +708,8 @@ const MobileProductDetails = () => {
                       src={p.images?.[0]}
                       alt={p.name}
                       className="h-full w-full object-contain p-2"
+                      loading="lazy"
+                      decoding="async"
                     />
                     {disc > 0 && (
                       <span

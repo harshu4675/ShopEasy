@@ -1,13 +1,17 @@
 import axios from "axios";
+import { cachedRequest, buildKey, invalidate } from "./requestCache";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://shopeasy-ecommerce-app.onrender.com/api";
-console.log("API URL:", API_URL);
-console.log("API Configuration:", {
-  baseURL: API_URL,
-  env: import.meta.env.MODE,
-});
+
+if (import.meta.env.DEV) {
+  console.log("API URL:", API_URL);
+  console.log("API Configuration:", {
+    baseURL: API_URL,
+    env: import.meta.env.MODE,
+  });
+}
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -16,6 +20,39 @@ export const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+/**
+ * Cache-aware GET.
+ *
+ * Behaves exactly like `api.get` (returns an axios-shaped `{ data }` object)
+ * but shares in-flight requests and reuses fresh responses. Used for read-only,
+ * frequently repeated endpoints (products, banners, cart badge, wishlist).
+ */
+export const cachedGet = (
+  url,
+  { params, ttl, force, persist, swr, maxAge, ...config } = {},
+) =>
+  cachedRequest(
+    buildKey(url, params),
+    async () => {
+      const response = await api.get(url, { params, ...config });
+      return { data: response.data };
+    },
+    { ttl, force, persist, swr, maxAge },
+  );
+
+/** Clears cached GET responses. Call after any mutation. */
+export const invalidateCache = invalidate;
+
+/** Namespaces cleared when the corresponding resource changes. */
+export const CACHE_KEYS = {
+  cart: "/cart",
+  wishlist: "/wishlist",
+  products: "/products",
+  banners: "/banners",
+  trending: "/trending",
+  notifications: "/notifications",
+};
 
 let isRefreshing = false;
 let failedQueue = [];
@@ -48,6 +85,24 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    /*
+     * The API returns 503 WARMING_UP while the instance is cold-starting and
+     * MongoDB has not finished connecting. Retrying transparently, honouring
+     * Retry-After, turns a visible failure into a slightly slower response.
+     */
+    if (error.response?.status === 503 && originalRequest) {
+      const attempt = originalRequest._warmupRetry || 0;
+      if (attempt < 3) {
+        originalRequest._warmupRetry = attempt + 1;
+        const headerDelay = Number(error.response.headers?.["retry-after"]);
+        const delay = Number.isFinite(headerDelay)
+          ? headerDelay * 1000
+          : 2000 * 2 ** attempt;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return api(originalRequest);
+      }
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (
@@ -90,6 +145,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
+        invalidate();
 
         if (
           !window.location.pathname.includes("/login") &&
@@ -141,16 +197,18 @@ export const categoriesAPI = {
     api.delete(`/categories/${id}/subcategories/${subId}`),
   seed: () => api.post("/categories/seed"),
 };
+const CATALOG_CACHE = { ttl: 120_000, persist: true, swr: true };
+
 export const productsAPI = {
-  getAll: (params) => api.get("/products", { params }),
-  getById: (id) => api.get(`/products/${id}`),
+  getAll: (params) => cachedGet("/products", { params, ...CATALOG_CACHE }),
+  getById: (id) => cachedGet(`/products/${id}`, CATALOG_CACHE),
   getByCategory: (category, params) =>
-    api.get(`/products/category/${category}`, { params }),
+    cachedGet(`/products/category/${category}`, { params, ...CATALOG_CACHE }),
   search: (query) => api.get(`/products/search?q=${query}`),
 };
 
 export const cartAPI = {
-  get: () => api.get("/cart"),
+  get: () => cachedGet("/cart", { ttl: 15_000 }),
   add: (data) => api.post("/cart", data),
   update: (itemId, data) => api.put(`/cart/${itemId}`, data),
   remove: (itemId) => api.delete(`/cart/${itemId}`),
@@ -160,7 +218,7 @@ export const cartAPI = {
 };
 
 export const wishlistAPI = {
-  get: () => api.get("/wishlist"),
+  get: () => cachedGet("/wishlist", { ttl: 15_000 }),
   add: (productId) => api.post("/wishlist", { productId }),
   remove: (productId) => api.delete(`/wishlist/${productId}`),
   check: (productId) => api.get(`/wishlist/check/${productId}`),
@@ -199,7 +257,8 @@ export const reviewsAPI = {
 };
 
 export const bannersAPI = {
-  getActive: () => api.get("/banners/active"),
+  getActive: () =>
+    cachedGet("/banners/active", { ttl: 300_000, persist: true, swr: true }),
   getAll: () => api.get("/banners"),
   getOne: (id) => api.get(`/banners/${id}`),
   create: (formData) =>
@@ -243,7 +302,12 @@ export const formatDateTime = (date) => {
 };
 
 export const trendingAPI = {
-  get: (limit = 8) => api.get(`/trending?limit=${limit}`),
+  get: (limit = 8) =>
+    cachedGet(`/trending?limit=${limit}`, {
+      ttl: 300_000,
+      persist: true,
+      swr: true,
+    }),
   getBestSellers: (limit = 10, days = 30) =>
     api.get(`/trending/best-sellers?limit=${limit}&days=${days}`),
   getAdminAll: () => api.get("/trending/admin/all"),
@@ -307,6 +371,86 @@ export const getPasswordStrength = (password) => {
   ];
 
   return levels[strength];
+};
+
+/* ------------------------------------------------------------------ *
+ * Newsletter
+ * ------------------------------------------------------------------ */
+export const newsletterAPI = {
+  subscribe: (email, source = "footer") =>
+    api.post("/newsletter/subscribe", { email, source }),
+  unsubscribe: (email) => api.post("/newsletter/unsubscribe", { email }),
+};
+
+/* ------------------------------------------------------------------ *
+ * Reseller programme
+ * ------------------------------------------------------------------ */
+export const resellerAPI = {
+  // onboarding / profile
+  apply: (data) => api.post("/reseller/apply", data),
+  getMe: (config) => api.get("/reseller/me", config),
+  updateProfile: (data) => api.put("/reseller/me", data),
+
+  // catalog
+  getCatalog: (params) => api.get("/reseller/catalog", { params }),
+  listProducts: (params) => api.get("/reseller/products", { params }),
+  addProduct: (data) => api.post("/reseller/products", data),
+  updateProduct: (id, data) => api.put(`/reseller/products/${id}`, data),
+  removeProduct: (id) => api.delete(`/reseller/products/${id}`),
+
+  // sharing
+  getShareLinks: (id) => api.get(`/reseller/products/${id}/share`),
+
+  // orders
+  getOrders: (params) => api.get("/reseller/orders", { params }),
+  getOrder: (id) => api.get(`/reseller/orders/${id}`),
+
+  // wallet
+  getWallet: () => api.get("/reseller/wallet"),
+  getTransactions: (params) =>
+    api.get("/reseller/wallet/transactions", { params }),
+  requestWithdrawal: (data) => api.post("/reseller/withdrawals", data),
+  getWithdrawals: (params) => api.get("/reseller/withdrawals", { params }),
+  cancelWithdrawal: (id) => api.delete(`/reseller/withdrawals/${id}`),
+
+  // analytics + referrals + customers
+  getAnalytics: (params) => api.get("/reseller/analytics", { params }),
+  getCommissions: (params) => api.get("/reseller/commissions", { params }),
+  getReferrals: (params) => api.get("/reseller/referrals", { params }),
+  getCustomers: (params) => api.get("/reseller/customers", { params }),
+  exportReport: (params) =>
+    api.get("/reseller/reports/export", { params, responseType: "blob" }),
+
+  // public storefront (no auth)
+  getPublicProduct: (slug) => api.get(`/reseller/public/${slug}`),
+  getPublicStore: (code, params) =>
+    api.get(`/reseller/public/store/${code}`, { params }),
+};
+
+export const resellerAdminAPI = {
+  list: (params) => api.get("/admin/resellers", { params }),
+  getOne: (id) => api.get(`/admin/resellers/${id}`),
+  approve: (id, data) => api.patch(`/admin/resellers/${id}/approve`, data),
+  reject: (id, data) => api.patch(`/admin/resellers/${id}/reject`, data),
+  suspend: (id, data) => api.patch(`/admin/resellers/${id}/suspend`, data),
+  reinstate: (id) => api.patch(`/admin/resellers/${id}/reinstate`),
+  updateLimits: (id, data) => api.patch(`/admin/resellers/${id}/limits`, data),
+
+  getWithdrawals: (params) => api.get("/admin/withdrawals", { params }),
+  approveWithdrawal: (id, data) =>
+    api.patch(`/admin/withdrawals/${id}/approve`, data),
+  rejectWithdrawal: (id, data) =>
+    api.patch(`/admin/withdrawals/${id}/reject`, data),
+  markWithdrawalPaid: (id, data) =>
+    api.patch(`/admin/withdrawals/${id}/paid`, data),
+
+  getStats: () => api.get("/admin/resellers/stats/overview"),
+  getLeaderboard: (params) =>
+    api.get("/admin/resellers/stats/leaderboard", { params }),
+  getFraudSignals: (params) => api.get("/admin/resellers/fraud", { params }),
+  getReferrals: (params) => api.get("/admin/referrals", { params }),
+  getCommissionRules: () => api.get("/admin/commission-rules"),
+  updateCommissionRules: (data) => api.put("/admin/commission-rules", data),
 };
 
 export const getErrorMessage = (error) => {

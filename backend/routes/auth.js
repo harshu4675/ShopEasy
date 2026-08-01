@@ -24,6 +24,10 @@ const hashToken = (token) => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
 
+// Brute-force policy, shared by the login handler and the User model.
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 15 * 60 * 1000;
+
 const getCookieOptions = (rememberMe = false) => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
@@ -432,8 +436,8 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       user.loginAttempts = (user.loginAttempts || 0) + 1;
 
-      if (user.loginAttempts >= 5) {
-        user.lockUntil = Date.now() + 15 * 60 * 1000;
+      if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.lockUntil = Date.now() + LOCK_DURATION_MS;
         await user.save();
         return res.status(423).json({
           success: false,
@@ -443,11 +447,14 @@ router.post("/login", async (req, res) => {
       }
 
       await user.save();
-      const attemptsLeft = 5 - user.loginAttempts;
 
+      // Brute-force protection still counts every failure server-side, but the
+      // remaining-attempts number is no longer echoed back. Leaking it both
+      // confirms the phone number exists and is what triggered the browser's
+      // "login attempt" warning banner on the client.
       return res.status(401).json({
         success: false,
-        message: `Invalid phone number or password. ${attemptsLeft} attempts left`,
+        message: "Invalid phone number or password",
       });
     }
 

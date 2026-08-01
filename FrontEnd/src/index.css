@@ -1,4 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap");
+/*
+ * Fonts are requested once, non-blocking, from index.html.
+ * The previous `@import url(...)` here forced a second render-blocking
+ * round-trip for Poppins before any CSS could apply.
+ */
 @import "tailwindcss";
 
 @layer base {
@@ -133,5 +137,60 @@
 
   .ease-custom {
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/*
+ * Mobile interaction and scrolling.
+ *
+ * Applied at the document level rather than per component so every horizontal
+ * strip and modal benefits without repeating the same declarations.
+ */
+@media (max-width: 767px) {
+  /*
+   * Momentum scrolling plus scroll containment. `overscroll-behavior-x` stops
+   * a horizontal swipe that reaches the end of a product strip from chaining
+   * into the browser's back-navigation gesture, which was easy to trigger
+   * accidentally.
+   */
+  .scrollbar-none,
+  [class*="overflow-x-auto"] {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+  }
+
+  /*
+   * Removes the 300ms tap delay and the grey flash on tap, which together are
+   * the largest contributor to interactions feeling sluggish on mobile.
+   */
+  a,
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /*
+   * Below-the-fold images are decoded off the main thread and skipped entirely
+   * while off-screen, which keeps long product grids scrolling smoothly.
+   */
+  img[loading="lazy"] {
+    content-visibility: auto;
+  }
+}
+
+/* Honour the OS reduced-motion setting across the whole app. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

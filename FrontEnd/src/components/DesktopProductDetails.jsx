@@ -5,7 +5,8 @@ import { AuthContext } from "../context/AuthContext";
 import { showToast } from "../utils/toast";
 import ReviewCard from "../components/ReviewCard";
 import Loader from "../components/Loader";
-import SizeChart, { getChartTypeForCategory } from "../components/SizeChart";
+import SizeChart from "../components/SizeChart";
+import { getChartTypeForCategory } from "../utils/sizeChart";
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -53,7 +54,7 @@ const ProductDetails = () => {
       if (response.data.sizes?.length) setSelectedSize(response.data.sizes[0]);
       if (response.data.colors?.length)
         setSelectedColor(response.data.colors[0].name);
-    } catch (error) {
+    } catch {
       showToast("Error loading product", "error");
     } finally {
       setLoading(false);
@@ -63,7 +64,9 @@ const ProductDetails = () => {
   const fetchReviews = useCallback(async () => {
     try {
       const response = await api.get(`/reviews/product/${id}`);
-      setReviews(response.data);
+      // The endpoint returns an array, but an error payload is an object.
+      // Guarding here keeps a failed reviews call from crashing the page.
+      setReviews(Array.isArray(response.data) ? response.data : response.data?.reviews || []);
     } catch (error) {
       console.error("Error fetching reviews:", error);
     }
@@ -212,6 +215,8 @@ const ProductDetails = () => {
                 src={product.images[selectedImage]}
                 alt={product.name}
                 className="absolute inset-0 h-full w-full object-contain "
+                loading="lazy"
+                decoding="async"
               />
             </div>
 
@@ -231,6 +236,8 @@ const ProductDetails = () => {
                       src={image}
                       alt={`${product.name} ${index + 1}`}
                       className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </button>
                 ))}
@@ -668,6 +675,12 @@ const ProductDetails = () => {
           </div>
         </div>
       </div>
+
+      <SizeChart
+        isOpen={showSizeChart}
+        onClose={() => setShowSizeChart(false)}
+        category={product.category}
+      />
     </div>
   );
 };

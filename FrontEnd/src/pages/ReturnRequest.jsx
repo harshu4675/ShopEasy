@@ -256,6 +256,8 @@ const ReturnRequest = () => {
                       src={item.image}
                       alt={item.name}
                       className="h-[70px] w-[70px] shrink-0 rounded-[8px] border border-[#e5e7eb] object-cover max-md:h-[60px] max-md:w-[60px] max-[480px]:h-[50px] max-[480px]:w-[50px]"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="mb-1 overflow-hidden text-ellipsis whitespace-nowrap text-[0.95rem] font-semibold text-[#1f2937] max-[480px]:text-[0.9rem]">

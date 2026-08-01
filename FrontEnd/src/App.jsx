@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense, useMemo } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,99 +6,180 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import InstallPWABanner from "./components/InstallPWABanner";
-import PushPermissionPrompt from "./components/PushPermissionPrompt";
-import AdminBroadcast from "./pages/admin/AdminBroadcast";
-import { AdminNotificationProvider } from "./context/AdminNotificationContext";
-import AdminNotificationToast from "./components/AdminNotificationToast";
-import AdminNotifications from "./pages/admin/AdminNotifications";
 import { NotificationProvider } from "./context/NotificationContext";
 import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
+import { CatalogStateProvider } from "./context/CatalogStateContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import WelcomePopup from "./components/WelcomePopup";
-import NotificationToast from "./components/NotificationToast";
 
 import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
-import ReturnRequest from "./pages/ReturnRequest";
-import Categories from "./pages/Categories";
-import ForgotPassword from "./pages/ForgotPassword";
-import Home from "./pages/Home";
-import ProductListing from "./pages/ProductListing";
-import ProductDetails from "./pages/ProductDetails";
-import Coupons from "./pages/Coupons";
-import ManageCategories from "./pages/admin/ManageCategories";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 import MobileTopBar from "./components/MobileTopBar";
 import MobileBottomNav from "./components/MobileBottomNav";
-import Account from "./pages/Account";
-import Cart from "./pages/Cart";
-import Wishlist from "./pages/Wishlist";
-import Checkout from "./pages/Checkout";
-import MyOrders from "./pages/MyOrders";
-import Notifications from "./pages/Notifications";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
-import Contact from "./pages/Contact";
-import MyReturns from "./pages/MyReturns";
+import RouteFallback from "./components/RouteFallback";
+import { prefetchRoute } from "./utils/routePrefetch";
 
-import Dashboard from "./pages/admin/Dashboard";
-import AddProduct from "./pages/admin/AddProduct";
-import EditProduct from "./pages/admin/EditProduct";
-import AllProducts from "./pages/admin/AllProducts";
-import AllOrders from "./pages/admin/AllOrders";
-import AllUsers from "./pages/admin/AllUsers";
-import AllReviews from "./pages/admin/AllReviews";
-import ManageCoupons from "./pages/admin/ManageCoupons";
-import DeliveryManagement from "./pages/admin/DeliveryManagement";
-import RefundManagement from "./pages/admin/RefundManagement";
-import ManageBanners from "./pages/admin/ManageBanners";
-import ManageTrending from "./pages/admin/ManageTrending";
+/* ------------------------------------------------------------------ *
+ * Below-the-fold / non-critical shell widgets.
+ * None of these are needed for first paint, so they load after hydration.
+ * ------------------------------------------------------------------ */
+const Footer = lazy(() => import("./components/Footer"));
+const WelcomePopup = lazy(() => import("./components/WelcomePopup"));
+const NotificationToast = lazy(() => import("./components/NotificationToast"));
+const AdminNotificationToast = lazy(
+  () => import("./components/AdminNotificationToast"),
+);
+const InstallPWABanner = lazy(() => import("./components/InstallPWABanner"));
+const PushPermissionPrompt = lazy(
+  () => import("./components/PushPermissionPrompt"),
+);
+
+/* ------------------------------------------------------------------ *
+ * Route-level code splitting.
+ * Home stays eager: it is the LCP route and lazy-loading it would add a
+ * network round-trip before the hero can paint.
+ * ------------------------------------------------------------------ */
+import Home from "./pages/Home";
+
+const ProductListing = lazy(() => import("./pages/ProductListing"));
+const ProductDetails = lazy(() => import("./pages/ProductDetails"));
+const Coupons = lazy(() => import("./pages/Coupons"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Categories = lazy(() => import("./pages/Categories"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const Cart = lazy(() => import("./pages/Cart"));
+const Wishlist = lazy(() => import("./pages/Wishlist"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const MyOrders = lazy(() => import("./pages/MyOrders"));
+const MyReturns = lazy(() => import("./pages/MyReturns"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const ReturnRequest = lazy(() => import("./pages/ReturnRequest"));
+const Account = lazy(() => import("./pages/Account"));
+
+/* Reseller programme */
+const ResellerApply = lazy(() => import("./pages/reseller/ResellerApply"));
+const ResellerDashboard = lazy(
+  () => import("./pages/reseller/ResellerDashboard"),
+);
+const ResellerCatalog = lazy(() => import("./pages/reseller/ResellerCatalog"));
+const ResellerProducts = lazy(
+  () => import("./pages/reseller/ResellerProducts"),
+);
+const ResellerOrders = lazy(() => import("./pages/reseller/ResellerOrders"));
+const ResellerWallet = lazy(() => import("./pages/reseller/ResellerWallet"));
+const ResellerAnalytics = lazy(
+  () => import("./pages/reseller/ResellerAnalytics"),
+);
+const ResellerReferrals = lazy(
+  () => import("./pages/reseller/ResellerReferrals"),
+);
+const ResellerCustomers = lazy(
+  () => import("./pages/reseller/ResellerCustomers"),
+);
+const ResellerStorefront = lazy(
+  () => import("./pages/reseller/ResellerStorefront"),
+);
+
+/* Admin — an entirely separate bundle from the storefront */
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const AddProduct = lazy(() => import("./pages/admin/AddProduct"));
+const EditProduct = lazy(() => import("./pages/admin/EditProduct"));
+const AllProducts = lazy(() => import("./pages/admin/AllProducts"));
+const AllOrders = lazy(() => import("./pages/admin/AllOrders"));
+const AllUsers = lazy(() => import("./pages/admin/AllUsers"));
+const AllReviews = lazy(() => import("./pages/admin/AllReviews"));
+const ManageCoupons = lazy(() => import("./pages/admin/ManageCoupons"));
+const ManageCategories = lazy(() => import("./pages/admin/ManageCategories"));
+const DeliveryManagement = lazy(
+  () => import("./pages/admin/DeliveryManagement"),
+);
+const RefundManagement = lazy(() => import("./pages/admin/RefundManagement"));
+const ManageBanners = lazy(() => import("./pages/admin/ManageBanners"));
+const ManageTrending = lazy(() => import("./pages/admin/ManageTrending"));
+const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
+const AdminNotifications = lazy(
+  () => import("./pages/admin/AdminNotifications"),
+);
+const ManageResellers = lazy(() => import("./pages/admin/ManageResellers"));
+const ManageWithdrawals = lazy(() => import("./pages/admin/ManageWithdrawals"));
+
+/** Mobile header titles, keyed by pathname. */
+const MOBILE_TITLES = {
+  "/cart": "MY CART",
+  "/checkout": "CHECKOUT",
+  "/wishlist": "WISHLIST",
+  "/my-orders": "MY ORDERS",
+  "/my-returns": "RETURNS",
+  "/notifications": "NOTIFICATIONS",
+  "/coupons": "OFFERS",
+  "/account": "ACCOUNT",
+  "/contact": "CONTACT",
+  "/privacy": "PRIVACY",
+  "/terms": "TERMS",
+  "/return-request": "RETURN REQUEST",
+  "/categories": "CATEGORIES",
+  "/reseller": "RESELLER HUB",
+  "/reseller/apply": "BECOME A RESELLER",
+  "/reseller/catalog": "CATALOG",
+  "/reseller/products": "MY PRODUCTS",
+  "/reseller/orders": "RESELLER ORDERS",
+  "/reseller/wallet": "WALLET",
+  "/reseller/analytics": "ANALYTICS",
+  "/reseller/referrals": "REFERRALS",
+  "/reseller/customers": "CUSTOMERS",
+};
+
+const getMobileTitle = (pathname) => {
+  if (pathname === "/") return "";
+  if (pathname.startsWith("/products")) return "";
+  if (pathname.startsWith("/product/")) return "";
+  return MOBILE_TITLES[pathname] || "";
+};
 
 const AppLayout = () => {
   const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith("/admin");
-  const isAuthRoute =
-    location.pathname === "/login" || location.pathname === "/register";
+  const { pathname } = location;
 
-  const showMobileBars = !isAdminRoute && !isAuthRoute;
+  // Derived layout flags — memoised so the shell doesn't recompute on every
+  // unrelated context update.
+  const layout = useMemo(() => {
+    const isAdminRoute = pathname.startsWith("/admin");
+    const isAuthRoute = pathname === "/login" || pathname === "/register";
+    return {
+      isAdminRoute,
+      isAuthRoute,
+      showMobileBars: !isAdminRoute && !isAuthRoute,
+      showBackOnMobile: pathname !== "/" && !isAdminRoute && !isAuthRoute,
+      title: getMobileTitle(pathname),
+    };
+  }, [pathname]);
 
-  const getMobileTitle = () => {
-    const p = location.pathname;
-    if (p === "/") return "";
-    if (p.startsWith("/products")) return "";
-    if (p.startsWith("/product/")) return "";
-    if (p === "/cart") return "MY CART";
-    if (p === "/checkout") return "CHECKOUT";
-    if (p === "/wishlist") return "WISHLIST";
-    if (p === "/my-orders") return "MY ORDERS";
-    if (p === "/my-returns") return "RETURNS";
-    if (p === "/notifications") return "NOTIFICATIONS";
-    if (p === "/coupons") return "OFFERS";
-    if (p === "/account") return "ACCOUNT";
-    if (p === "/contact") return "CONTACT";
-    if (p === "/privacy") return "PRIVACY";
-    if (p === "/terms") return "TERMS";
-    if (p === "/return-request") return "RETURN REQUEST";
-    if (p === "/categories") return "CATEGORIES";
-    return "";
-  };
+  const { isAdminRoute, isAuthRoute, showMobileBars, showBackOnMobile, title } =
+    layout;
 
-  const showBackOnMobile =
-    location.pathname !== "/" && !isAdminRoute && !isAuthRoute;
+  const mainClassName = isAdminRoute
+    ? ""
+    : showMobileBars
+      ? "min-h-screen pb-16 pt-14 md:pb-0 md:pt-0"
+      : "min-h-screen";
 
   return (
     <>
-      <NotificationToast />
-      <AdminNotificationToast />
-      <InstallPWABanner />
-      <PushPermissionPrompt />
-      {!isAdminRoute && !isAuthRoute && <WelcomePopup />}
+      {/* Deferred shell widgets: never block the first paint. */}
+      <Suspense fallback={null}>
+        <NotificationToast />
+        <AdminNotificationToast />
+        <InstallPWABanner />
+        <PushPermissionPrompt />
+        {!isAdminRoute && !isAuthRoute && <WelcomePopup />}
+      </Suspense>
+
       {!isAdminRoute && (
         <>
           <div className="hidden md:block">
@@ -106,226 +187,319 @@ const AppLayout = () => {
           </div>
           {showMobileBars && (
             <div className="md:hidden">
-              <MobileTopBar
-                showBack={showBackOnMobile}
-                title={getMobileTitle()}
-              />
+              <MobileTopBar showBack={showBackOnMobile} title={title} />
             </div>
           )}
         </>
       )}
 
-      <main
-        className={
-          isAdminRoute
-            ? ""
-            : showMobileBars
-              ? "min-h-screen pb-16 pt-14 md:pb-0 md:pt-0"
-              : "min-h-screen"
-        }
-      >
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<ProductListing />} />
-          <Route path="/product/:id" element={<ProductDetails />} />
-          <Route path="/coupons" element={<Coupons />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/categories" element={<Categories />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route
-            path="/admin/broadcast"
-            element={
-              <AdminRoute>
-                <AdminBroadcast />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/notifications"
-            element={
-              <AdminRoute>
-                <AdminNotifications />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/cart"
-            element={
-              <ProtectedRoute>
-                <Cart />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/wishlist"
-            element={
-              <ProtectedRoute>
-                <Wishlist />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/checkout"
-            element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-orders"
-            element={
-              <ProtectedRoute>
-                <MyOrders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/categories"
-            element={
-              <AdminRoute>
-                <ManageCategories />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/my-returns"
-            element={
-              <ProtectedRoute>
-                <MyReturns />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/return-request"
-            element={
-              <ProtectedRoute>
-                <ReturnRequest />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/account"
-            element={
-              <ProtectedRoute>
-                <Account />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <AdminRoute>
-                <Dashboard />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/add-product"
-            element={
-              <AdminRoute>
-                <AddProduct />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/edit-product/:id"
-            element={
-              <AdminRoute>
-                <EditProduct />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/products"
-            element={
-              <AdminRoute>
-                <AllProducts />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/orders"
-            element={
-              <AdminRoute>
-                <AllOrders />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <AdminRoute>
-                <AllUsers />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/reviews"
-            element={
-              <AdminRoute>
-                <AllReviews />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/coupons"
-            element={
-              <AdminRoute>
-                <ManageCoupons />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/delivery"
-            element={
-              <AdminRoute>
-                <DeliveryManagement />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/refunds"
-            element={
-              <AdminRoute>
-                <RefundManagement />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/banners"
-            element={
-              <AdminRoute>
-                <ManageBanners />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/trending"
-            element={
-              <AdminRoute>
-                <ManageTrending />
-              </AdminRoute>
-            }
-          />
-        </Routes>
+      <main className={mainClassName}>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/products" element={<ProductListing />} />
+            <Route path="/product/:id" element={<ProductDetails />} />
+            <Route path="/coupons" element={<Coupons />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            {/* Public reseller storefront (shareable links) */}
+            <Route path="/s/:slug" element={<ResellerStorefront />} />
+            <Route path="/store/:code" element={<ResellerStorefront />} />
+
+            <Route
+              path="/cart"
+              element={
+                <ProtectedRoute>
+                  <Cart />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wishlist"
+              element={
+                <ProtectedRoute>
+                  <Wishlist />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-orders"
+              element={
+                <ProtectedRoute>
+                  <MyOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-returns"
+              element={
+                <ProtectedRoute>
+                  <MyReturns />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/return-request"
+              element={
+                <ProtectedRoute>
+                  <ReturnRequest />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account"
+              element={
+                <ProtectedRoute>
+                  <Account />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Reseller programme (authenticated) */}
+            <Route
+              path="/reseller/apply"
+              element={
+                <ProtectedRoute>
+                  <ResellerApply />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller"
+              element={
+                <ProtectedRoute>
+                  <ResellerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller/catalog"
+              element={
+                <ProtectedRoute>
+                  <ResellerCatalog />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller/products"
+              element={
+                <ProtectedRoute>
+                  <ResellerProducts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller/orders"
+              element={
+                <ProtectedRoute>
+                  <ResellerOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller/wallet"
+              element={
+                <ProtectedRoute>
+                  <ResellerWallet />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller/analytics"
+              element={
+                <ProtectedRoute>
+                  <ResellerAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller/referrals"
+              element={
+                <ProtectedRoute>
+                  <ResellerReferrals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reseller/customers"
+              element={
+                <ProtectedRoute>
+                  <ResellerCustomers />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin */}
+            <Route
+              path="/admin/broadcast"
+              element={
+                <AdminRoute>
+                  <AdminBroadcast />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/notifications"
+              element={
+                <AdminRoute>
+                  <AdminNotifications />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/categories"
+              element={
+                <AdminRoute>
+                  <ManageCategories />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <AdminRoute>
+                  <Dashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/add-product"
+              element={
+                <AdminRoute>
+                  <AddProduct />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/edit-product/:id"
+              element={
+                <AdminRoute>
+                  <EditProduct />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/products"
+              element={
+                <AdminRoute>
+                  <AllProducts />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/orders"
+              element={
+                <AdminRoute>
+                  <AllOrders />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <AllUsers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/reviews"
+              element={
+                <AdminRoute>
+                  <AllReviews />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/coupons"
+              element={
+                <AdminRoute>
+                  <ManageCoupons />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/delivery"
+              element={
+                <AdminRoute>
+                  <DeliveryManagement />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/refunds"
+              element={
+                <AdminRoute>
+                  <RefundManagement />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/banners"
+              element={
+                <AdminRoute>
+                  <ManageBanners />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/trending"
+              element={
+                <AdminRoute>
+                  <ManageTrending />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/resellers"
+              element={
+                <AdminRoute>
+                  <ManageResellers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/withdrawals"
+              element={
+                <AdminRoute>
+                  <ManageWithdrawals />
+                </AdminRoute>
+              }
+            />
+          </Routes>
+        </Suspense>
       </main>
 
+      {/* Desktop only. On phones the bottom nav already carries the primary
+          links, and dropping the footer plus newsletter removes a lazy chunk,
+          a form and an icon font dependency from the mobile critical path. */}
       {!isAdminRoute && !isAuthRoute && (
         <div className="hidden md:block">
-          <Footer />
+          <Suspense fallback={null}>
+            <Footer />
+          </Suspense>
         </div>
       )}
 
@@ -339,27 +513,39 @@ const AppLayout = () => {
 };
 
 function App() {
+  // Warm the chunks a shopper is most likely to hit next, once the browser is
+  // idle. Costs nothing on the critical path and makes navigation instant.
+  React.useEffect(() => {
+    prefetchRoute([
+      () => import("./pages/ProductListing"),
+      () => import("./pages/ProductDetails"),
+      () => import("./pages/Cart"),
+    ]);
+  }, []);
+
   return (
     <AuthProvider>
       <NotificationProvider>
         <CartProvider>
           <WishlistProvider>
-            <Router>
-              <AppLayout />
-              <ToastContainer
-                position="top-right"
-                autoClose={5000}
-                hideProgressBar={false}
-                newestOnTop
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme="light"
-                limit={4}
-              />
-            </Router>
+            <CatalogStateProvider>
+              <Router>
+                <AppLayout />
+                <ToastContainer
+                  position="top-right"
+                  autoClose={5000}
+                  hideProgressBar={false}
+                  newestOnTop
+                  closeOnClick
+                  rtl={false}
+                  pauseOnFocusLoss
+                  draggable
+                  pauseOnHover
+                  theme="light"
+                  limit={4}
+                />
+              </Router>
+            </CatalogStateProvider>
           </WishlistProvider>
         </CartProvider>
       </NotificationProvider>

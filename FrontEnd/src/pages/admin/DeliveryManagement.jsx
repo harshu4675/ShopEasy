@@ -24,7 +24,7 @@ const DeliveryManagement = () => {
         (order) => !["Delivered", "Cancelled"].includes(order.orderStatus),
       );
       setOrders(activeOrders);
-    } catch (error) {
+    } catch {
       showToast("Error fetching orders", "error");
     } finally {
       setLoading(false);
@@ -47,7 +47,7 @@ const DeliveryManagement = () => {
       setUpdateForm({ status: "", location: "", description: "" });
       setSelectedOrder(null);
       fetchOrders();
-    } catch (error) {
+    } catch {
       showToast("Error adding update", "error");
     }
   };
@@ -60,7 +60,7 @@ const DeliveryManagement = () => {
       });
       showToast(`Order marked as ${newStatus}`, "success");
       fetchOrders();
-    } catch (error) {
+    } catch {
       showToast("Error updating status", "error");
     }
   };
@@ -178,6 +178,8 @@ const DeliveryManagement = () => {
                         src={item.image}
                         alt={item.name}
                         className="w-10 h-10 object-cover rounded"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ))}
                     {order.items.length > 4 && (

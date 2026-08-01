@@ -1,17 +1,11 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, formatPrice } from "../utils/api";
+import { api, formatPrice, invalidateCache, CACHE_KEYS } from "../utils/api";
 import { CartContext } from "../context/CartContext";
 import { showToast } from "../utils/toast";
-import Loader from "./Loader";
-
-const matIcon = {
-  fontFamily: '"Material Symbols Outlined"',
-  fontWeight: "normal",
-  fontStyle: "normal",
-  lineHeight: 1,
-  display: "inline-block",
-};
+import { MobileCartSkeleton } from "./Skeleton";
+import { matIcon } from "../utils/fonts";
+import useGoogleFonts from "../hooks/useGoogleFonts";
 
 const MobileCart = () => {
   const navigate = useNavigate();
@@ -24,59 +18,35 @@ const MobileCart = () => {
   const [updatingItem, setUpdatingItem] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
 
-  useEffect(() => {
-    const fontId = "mobile-cart-fonts";
-    if (!document.getElementById(fontId)) {
-      const link = document.createElement("link");
-      link.id = fontId;
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap";
-      document.head.appendChild(link);
-    }
-  }, []);
+  useGoogleFonts(
+    "mobile-cart-fonts",
+    "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap",
+  );
 
-  const fetchCart = async () => {
+  /**
+   * Refetches the cart. Previously three separate effects/functions all hit
+   * `/cart` on mount (two duplicate requests), which is why the mobile cart
+   * felt slow and briefly rendered nothing.
+   */
+  const fetchCart = useCallback(async (signal) => {
     try {
-      const res = await api.get("/cart");
+      invalidateCache(CACHE_KEYS.cart);
+      const res = await api.get("/cart", { signal });
       setCart(res.data);
     } catch (err) {
+      if (err?.name === "CanceledError" || err?.name === "AbortError") return;
       console.error("Cart fetch error:", err);
       setCart({ items: [], appliedCoupon: null });
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const res = await api.get("/cart");
-        if (mounted) {
-          setCart(res.data);
-        }
-      } catch (err) {
-        console.error("Cart fetch error:", err);
-        if (mounted) {
-          setCart({ items: [], appliedCoupon: null });
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-    load();
-
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   useEffect(() => {
-    fetchCart();
-  }, []);
+    const controller = new AbortController();
+    fetchCart(controller.signal);
+    return () => controller.abort();
+  }, [fetchCart]);
 
   const updateQuantity = async (productId, quantity, size, color) => {
     if (quantity < 1) return;
@@ -188,7 +158,9 @@ const MobileCart = () => {
     Math.max(0, calcSubtotal() - calcDiscount() + calcDelivery());
   const remainingForFree = () => Math.max(0, 199 - calcSubtotal());
 
-  if (loading) return <Loader fullScreen />;
+  // A cart-shaped skeleton instead of a blank full-screen spinner: the user
+  // immediately sees the page structure while data is in flight.
+  if (loading) return <MobileCartSkeleton />;
 
   if (!cart?.items || cart.items.length === 0) {
     return (
@@ -290,6 +262,8 @@ const MobileCart = () => {
                     src={item.product.images?.[0]}
                     alt={item.product.name}
                     className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </Link>
 

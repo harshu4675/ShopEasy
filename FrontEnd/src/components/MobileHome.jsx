@@ -1,22 +1,145 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { memo, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, formatPrice, trendingAPI, bannersAPI } from "../utils/api";
+import { cachedGet, formatPrice, trendingAPI, bannersAPI } from "../utils/api";
 import { getRecentlyViewed } from "../utils/recentlyViewed";
 import ProductCard from "./ProductCard";
 import MobileWelcomeBanner from "./MobileWelcomeBanner";
+import HomeBannerCarousel from "./HomeBannerCarousel";
+import SmartImage from "./SmartImage";
+import { ProductRowSkeleton } from "./Skeleton";
+import { matIcon } from "../utils/fonts";
+import useGoogleFonts from "../hooks/useGoogleFonts";
 
-const matIcon = {
-  fontFamily: '"Material Symbols Outlined"',
-  fontWeight: "normal",
-  fontStyle: "normal",
-  lineHeight: 1,
-  display: "inline-block",
-};
+/**
+ * Static data hoisted to module scope: these arrays never change, so keeping
+ * them out of the component body avoids re-allocating them (and invalidating
+ * child props) on every render.
+ */
+const CATEGORIES = [
+  { name: "All Categories", icon: "apps", param: "" },
+  { name: "Women's Clothing", icon: "woman", param: "Women's Clothing" },
+  { name: "Men's Clothing", icon: "checkroom", param: "Men's Clothing" },
+  { name: "Kids' Clothing", icon: "child_care", param: "Kids' Clothing" },
+  { name: "Perfumes", icon: "spa", param: "Perfumes" },
+  { name: "Watches", icon: "watch", param: "Watches" },
+  { name: "Sunglasses", icon: "sunny", param: "Sunglasses" },
+  { name: "Bags & Wallets", icon: "backpack", param: "Bags & Wallets" },
+  { name: "Jewelry", icon: "diamond", param: "Jewelry" },
+  { name: "Footwear", icon: "footprint", param: "Footwear" },
+  { name: "Accessories", icon: "auto_awesome", param: "Accessories" },
+];
+
+const TABS = ["For You", "Fashion", "Beauty", "Home", "Electronics"];
+
+/**
+ * Section header. Defined at module scope (not inside MobileHome) so React
+ * sees a stable component type — previously it was re-created on every render,
+ * which forced a full unmount/remount of every section subtree.
+ */
+const SectionHeader = memo(({ icon, iconBg, title, subtitle, link }) => (
+  <div className="mb-2 flex items-center justify-between px-3">
+    <div className="flex items-center gap-2">
+      <div
+        className="flex h-8 w-8 items-center justify-center rounded-lg"
+        style={{ background: iconBg }}
+      >
+        <span style={matIcon} className="text-[18px] text-white">
+          {icon}
+        </span>
+      </div>
+      <div>
+        <h2 className="m-0 text-sm font-bold text-gray-900">{title}</h2>
+        {subtitle && (
+          <p className="m-0 text-[10px] text-gray-500">{subtitle}</p>
+        )}
+      </div>
+    </div>
+    {link && (
+      <Link
+        to={link}
+        className="flex items-center gap-0.5 text-[11px] font-bold text-pink-600 no-underline"
+      >
+        See all
+        <span style={matIcon} className="text-[14px]">
+          chevron_right
+        </span>
+      </Link>
+    )}
+  </div>
+));
+SectionHeader.displayName = "SectionHeader";
+
+/**
+ * Horizontal product strip. Memoised on `items` so banner rotations and tab
+ * changes can no longer reset its horizontal scroll position.
+ */
+const HorizontalProductRow = memo(({ items }) => (
+  <div className="scrollbar-none flex gap-2 overflow-x-auto px-3 pb-2">
+    {items.map((product) => {
+      const disc = product.originalPrice
+        ? Math.round(
+            ((product.originalPrice - product.price) / product.originalPrice) *
+              100,
+          )
+        : product.discount || 0;
+      return (
+        <Link
+          key={product._id}
+          to={`/product/${product._id}`}
+          className="block w-[140px] shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline"
+        >
+          <div className="relative aspect-square bg-white">
+            <SmartImage
+              src={product.images?.[0]}
+              alt={product.name}
+              className="h-full w-full object-contain p-1.5"
+              width={160}
+              sizes="140px"
+            />
+            {disc > 0 && (
+              <span
+                className="absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold text-white"
+                style={{
+                  background: "linear-gradient(135deg, #831843, #be185d)",
+                }}
+              >
+                {disc}% OFF
+              </span>
+            )}
+          </div>
+          <div className="p-2">
+            <p
+              className="m-0 mb-1 text-[11px] font-semibold text-gray-800"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {product.name}
+            </p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-bold text-gray-900">
+                {formatPrice(product.price)}
+              </span>
+              {product.originalPrice > product.price && (
+                <span className="text-[10px] text-gray-400 line-through">
+                  {formatPrice(product.originalPrice)}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
+      );
+    })}
+  </div>
+));
+HorizontalProductRow.displayName = "HorizontalProductRow";
 
 const MobileHome = () => {
   const navigate = useNavigate();
   const [banners, setBanners] = useState([]);
-  const [bannerIndex, setBannerIndex] = useState(0);
   const [products, setProducts] = useState([]);
   const [trending, setTrending] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -26,193 +149,86 @@ const MobileHome = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("For You");
 
-  useEffect(() => {
-    const fontId = "mobile-home-fonts";
-    if (!document.getElementById(fontId)) {
-      const link = document.createElement("link");
-      link.id = fontId;
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap";
-      document.head.appendChild(link);
-    }
-  }, []);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [bannerRes, trendRes, newRes, dealsRes, allRes] = await Promise.all(
-        [
-          bannersAPI.getActive().catch(() => ({ data: [] })),
-          trendingAPI.get(8).catch(() => ({ data: [] })),
-          api.get("/products?sort=newest&limit=8").catch(() => ({ data: [] })),
-          api
-            .get("/products?sort=discount&limit=8")
-            .catch(() => ({ data: [] })),
-          api.get("/products?limit=20").catch(() => ({ data: [] })),
-        ],
-      );
-
-      setBanners(Array.isArray(bannerRes.data) ? bannerRes.data : []);
-
-      const extract = (r) =>
-        Array.isArray(r.data) ? r.data : r.data?.products || [];
-
-      const trendArr = extract(trendRes).slice(0, 6);
-      const newArr = extract(newRes).slice(0, 6);
-      const dealArr = extract(dealsRes)
-        .filter((p) => (p.discount || 0) > 0 || p.originalPrice > p.price)
-        .slice(0, 6);
-      const all = extract(allRes);
-
-      setTrending(trendArr);
-      setNewArrivals(newArr);
-      setDeals(dealArr);
-
-      const usedIds = new Set([
-        ...trendArr.map((p) => p._id),
-        ...newArr.map((p) => p._id),
-        ...dealArr.map((p) => p._id),
-      ]);
-      const remaining = all.filter((p) => !usedIds.has(p._id)).slice(0, 20);
-      setProducts(remaining);
-
-      setRecentlyViewed(getRecentlyViewed(10));
-    } catch (err) {
-      console.error("Home data error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const timer = setInterval(() => {
-      setBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [banners.length]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
-
-  const categories = [
-    { name: "All Categories", icon: "apps", param: "" },
-    { name: "Women's Clothing", icon: "woman", param: "Women's Clothing" },
-    { name: "Men's Clothing", icon: "checkroom", param: "Men's Clothing" },
-    { name: "Kids' Clothing", icon: "child_care", param: "Kids' Clothing" },
-    { name: "Perfumes", icon: "spa", param: "Perfumes" },
-    { name: "Watches", icon: "watch", param: "Watches" },
-    { name: "Sunglasses", icon: "sunny", param: "Sunglasses" },
-    { name: "Bags & Wallets", icon: "backpack", param: "Bags & Wallets" },
-    { name: "Jewelry", icon: "diamond", param: "Jewelry" },
-    { name: "Footwear", icon: "footprint", param: "Footwear" },
-    { name: "Accessories", icon: "auto_awesome", param: "Accessories" },
-  ];
-
-  const tabs = ["For You", "Fashion", "Beauty", "Home", "Electronics"];
-  const currentBanner = banners[bannerIndex];
-
-  const SectionHeader = ({ icon, iconBg, title, subtitle, link }) => (
-    <div className="mb-2 flex items-center justify-between px-3">
-      <div className="flex items-center gap-2">
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg"
-          style={{ background: iconBg }}
-        >
-          <span style={matIcon} className="text-[18px] text-white">
-            {icon}
-          </span>
-        </div>
-        <div>
-          <h2 className="m-0 text-sm font-bold text-gray-900">{title}</h2>
-          {subtitle && (
-            <p className="m-0 text-[10px] text-gray-500">{subtitle}</p>
-          )}
-        </div>
-      </div>
-      {link && (
-        <Link
-          to={link}
-          className="flex items-center gap-0.5 text-[11px] font-bold text-pink-600 no-underline"
-        >
-          See all
-          <span style={matIcon} className="text-[14px]">
-            chevron_right
-          </span>
-        </Link>
-      )}
-    </div>
+  useGoogleFonts(
+    "mobile-home-fonts",
+    "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap",
   );
 
-  const HorizontalProductRow = ({ items }) => (
-    <div className="scrollbar-none flex gap-2 overflow-x-auto px-3 pb-2">
-      {items.map((product) => {
-        const disc = product.originalPrice
-          ? Math.round(
-              ((product.originalPrice - product.price) /
-                product.originalPrice) *
-                100,
-            )
-          : product.discount || 0;
-        return (
-          <Link
-            key={product._id}
-            to={`/product/${product._id}`}
-            className="block w-[140px] shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline"
-          >
-            <div className="relative aspect-square bg-white">
-              <img
-                src={product.images?.[0]}
-                alt={product.name}
-                className="h-full w-full object-contain p-1.5"
-              />
-              {disc > 0 && (
-                <span
-                  className="absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold text-white"
-                  style={{
-                    background: "linear-gradient(135deg, #831843, #be185d)",
-                  }}
-                >
-                  {disc}% OFF
-                </span>
-              )}
-            </div>
-            <div className="p-2">
-              <p
-                className="m-0 mb-1 text-[11px] font-semibold text-gray-800"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
-              >
-                {product.name}
-              </p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xs font-bold text-gray-900">
-                  {formatPrice(product.price)}
-                </span>
-                {product.originalPrice > product.price && (
-                  <span className="text-[10px] text-gray-400 line-through">
-                    {formatPrice(product.originalPrice)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [bannerRes, trendRes, newRes, dealsRes, allRes] =
+          await Promise.all([
+            bannersAPI.getActive().catch(() => ({ data: [] })),
+            trendingAPI.get(8).catch(() => ({ data: [] })),
+            cachedGet("/products", {
+              params: { sort: "newest", limit: 8 },
+              ttl: 120_000,
+              persist: true,
+              swr: true,
+            }).catch(() => ({ data: [] })),
+            cachedGet("/products", {
+              params: { sort: "discount", limit: 8 },
+              ttl: 120_000,
+              persist: true,
+              swr: true,
+            }).catch(() => ({ data: [] })),
+            cachedGet("/products", {
+              params: { limit: 20 },
+              ttl: 120_000,
+              persist: true,
+              swr: true,
+            }).catch(() => ({ data: [] })),
+          ]);
+
+        if (cancelled) return;
+
+        setBanners(Array.isArray(bannerRes.data) ? bannerRes.data : []);
+
+        const extract = (r) =>
+          Array.isArray(r.data) ? r.data : r.data?.products || [];
+
+        const trendArr = extract(trendRes).slice(0, 6);
+        const newArr = extract(newRes).slice(0, 6);
+        const dealArr = extract(dealsRes)
+          .filter((p) => (p.discount || 0) > 0 || p.originalPrice > p.price)
+          .slice(0, 6);
+        const all = extract(allRes);
+
+        setTrending(trendArr);
+        setNewArrivals(newArr);
+        setDeals(dealArr);
+
+        const usedIds = new Set([
+          ...trendArr.map((p) => p._id),
+          ...newArr.map((p) => p._id),
+          ...dealArr.map((p) => p._id),
+        ]);
+        setProducts(all.filter((p) => !usedIds.has(p._id)).slice(0, 20));
+        setRecentlyViewed(getRecentlyViewed(10));
+      } catch (err) {
+        if (!cancelled) console.error("Home data error:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSearch = useCallback(
+    (e) => {
+      e.preventDefault();
+      const q = searchQuery.trim();
+      if (q) navigate(`/products?search=${encodeURIComponent(q)}`);
+    },
+    [searchQuery, navigate],
   );
 
   return (
@@ -260,7 +276,7 @@ const MobileHome = () => {
 
       <div className="border-b border-gray-100 bg-white">
         <div className="scrollbar-none flex gap-1 overflow-x-auto px-2 py-2">
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -285,7 +301,7 @@ const MobileHome = () => {
 
       <div className="mt-2 bg-white py-3">
         <div className="scrollbar-none flex gap-3 overflow-x-auto px-3 pb-1">
-          {categories.map((cat) => (
+          {CATEGORIES.map((cat) => (
             <Link
               key={cat.name}
               to={
@@ -308,51 +324,15 @@ const MobileHome = () => {
         </div>
       </div>
 
-      {banners.length > 0 && currentBanner && (
-        <div className="mt-2 px-3">
-          <Link
-            to={currentBanner.link || "/products"}
-            className="relative block overflow-hidden rounded-2xl no-underline shadow-md"
-            style={{ aspectRatio: "16/9" }}
-          >
-            <img
-              src={currentBanner.image}
-              alt={currentBanner.title || "Banner"}
-              className="h-full w-full object-cover"
-            />
-            {(currentBanner.title || currentBanner.subtitle) && (
-              <div
-                className="absolute inset-0 flex flex-col justify-end p-4"
-                style={{
-                  background: `linear-gradient(180deg, transparent 40%, rgba(0,0,0,${currentBanner.overlayOpacity || 0.4}) 100%)`,
-                  color: currentBanner.textColor || "#ffffff",
-                }}
-              >
-                {currentBanner.subtitle && (
-                  <span className="mb-1 inline-block self-start rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest backdrop-blur-md">
-                    {currentBanner.subtitle}
-                  </span>
-                )}
-                {currentBanner.title && (
-                  <h3 className="m-0 text-lg font-extrabold leading-tight drop-shadow-lg">
-                    {currentBanner.title}
-                  </h3>
-                )}
-              </div>
-            )}
-            {banners.length > 1 && (
-              <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
-                {banners.map((_, i) => (
-                  <span
-                    key={i}
-                    className={`h-1 rounded-full transition-all ${
-                      i === bannerIndex ? "w-4 bg-white" : "w-1 bg-white/50"
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
-          </Link>
+      {/* Isolated: rotating this carousel no longer re-renders the page.
+          See components/HomeBannerCarousel.jsx */}
+      <HomeBannerCarousel banners={banners} variant="mobile" />
+
+      {/* While the first payload is in flight, show strips of skeletons at the
+          exact tile dimensions so nothing shifts when data lands. */}
+      {loading && (
+        <div className="mt-4" aria-hidden="true">
+          <ProductRowSkeleton count={6} width={140} />
         </div>
       )}
 
@@ -498,4 +478,9 @@ const MobileHome = () => {
   );
 };
 
-export default MobileHome;
+/**
+ * Memoised: the home page only needs to re-render when its own data changes.
+ * Combined with the self-contained banner carousel this keeps product carousel
+ * scroll offsets and card state stable across banner rotations.
+ */
+export default memo(MobileHome);

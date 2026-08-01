@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { api, categoriesAPI, formatPrice } from "../utils/api";
 import Loader from "../components/Loader";
 
@@ -12,8 +12,7 @@ const matIcon = {
 };
 
 const Categories = () => {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
@@ -33,15 +32,18 @@ const Categories = () => {
     }
   }, []);
 
+  // Reads the query string at call time rather than closing over searchParams,
+  // so the callback identity stays stable and the effect runs once.
   const fetchCategories = useCallback(async () => {
+    const params = new URLSearchParams(window.location.search);
     setLoading(true);
     try {
       const res = await categoriesAPI.getAll(true);
       const cats = Array.isArray(res.data) ? res.data : [];
       setCategories(cats);
 
-      const catParam = searchParams.get("cat");
-      const subParam = searchParams.get("sub");
+      const catParam = params.get("cat");
+      const subParam = params.get("sub");
 
       if (catParam) {
         const found = cats.find(
@@ -309,6 +311,8 @@ const Categories = () => {
                                 src={sub.image}
                                 alt={sub.name}
                                 className="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
                               />
                             ) : (
                               <span
@@ -420,6 +424,8 @@ const Categories = () => {
                             src={product.images?.[0]}
                             alt={product.name}
                             className="h-full w-full object-contain p-2"
+                            loading="lazy"
+                            decoding="async"
                           />
                           {disc > 0 && (
                             <span

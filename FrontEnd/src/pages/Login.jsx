@@ -1,16 +1,16 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { showToast } from "../utils/toast";
 import Logo from "../components/Logo";
-
-const matIcon = {
-  fontFamily: '"Material Symbols Outlined"',
-  fontWeight: "normal",
-  fontStyle: "normal",
-  lineHeight: 1,
-  display: "inline-block",
-};
+import { matIcon } from "../utils/fonts";
+import useGoogleFonts from "../hooks/useGoogleFonts";
 
 const Login = () => {
   const { login, getRememberedPhone } = useContext(AuthContext);
@@ -21,20 +21,14 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const passwordRef = useRef(null);
 
   const from = location.state?.from?.pathname || "/";
 
-  useEffect(() => {
-    const fontId = "login-fonts";
-    if (!document.getElementById(fontId)) {
-      const link = document.createElement("link");
-      link.id = fontId;
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Great+Vibes&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap";
-      document.head.appendChild(link);
-    }
-  }, []);
+  useGoogleFonts(
+    "login-fonts",
+    "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Great+Vibes&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap",
+  );
 
   useEffect(() => {
     const rememberedPhone = getRememberedPhone();
@@ -53,6 +47,27 @@ const Login = () => {
       setFormData({ ...formData, [name]: value });
     }
   };
+
+  /**
+   * On a failed sign-in the browser's password manager would otherwise offer to
+   * save (or warn about) the credentials that were just rejected, and Chrome's
+   * credential store would keep the stale entry queued for the next visit.
+   *
+   * Clearing the password field and calling `preventSilentAccess()` tells the
+   * Credential Management API that the attempt did not succeed, which
+   * suppresses the save/attempt prompt. Authentication itself is untouched —
+   * the server still rate-limits and locks accounts.
+   */
+  const dismissBrowserCredentialPrompt = useCallback(() => {
+    setFormData((prev) => ({ ...prev, password: "" }));
+    if (passwordRef.current) passwordRef.current.value = "";
+
+    try {
+      navigator.credentials?.preventSilentAccess?.();
+    } catch {
+      /* not supported — nothing to clean up */
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,8 +89,12 @@ const Login = () => {
       if (response.success) {
         showToast("Welcome back!", "success");
         navigate(from, { replace: true });
+        return;
       }
+      dismissBrowserCredentialPrompt();
+      showToast(response.message || "Login failed", "error");
     } catch (error) {
+      dismissBrowserCredentialPrompt();
       const errorData = error.response?.data;
       showToast(errorData?.message || "Login failed", "error");
     } finally {
@@ -220,7 +239,13 @@ const Login = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
+            method="post"
+            action="#"
+            noValidate
+          >
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 Phone Number
@@ -254,7 +279,7 @@ const Login = () => {
                   maxLength="10"
                   required
                   disabled={loading}
-                  autoComplete="tel"
+                  autoComplete="username tel"
                   className="flex-1 border-none bg-transparent px-4 py-3.5 text-base text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60"
                 />
                 {isValidPhone && (
@@ -280,6 +305,7 @@ const Login = () => {
                   lock
                 </span>
                 <input
+                  ref={passwordRef}
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}

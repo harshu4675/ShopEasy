@@ -4,6 +4,17 @@ import { api, formatPrice } from "../utils/api";
 import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
 import { showToast } from "../utils/toast";
+// Address/phone/pincode validators. These were called throughout this
+// component but never imported, so every checkout interaction threw
+// "validateX is not defined".
+import {
+  validateName,
+  validatePhone,
+  validateAddress,
+  validatePincode,
+  lookupPincode,
+} from "../utils/pincodeService";
+import { getResellerRef, clearResellerRef } from "../utils/resellerRef";
 import Loader from "./Loader";
 
 const matIcon = {
@@ -274,9 +285,12 @@ const MobileCheckout = () => {
         paymentMethod: formData.paymentMethod,
         ...(paymentId && { razorpayPaymentId: paymentId }),
         ...(orderId && { razorpayOrderId: orderId }),
+        // Credits the reseller when the shopper arrived via a shared link.
+        ...(getResellerRef() ? { resellerCode: getResellerRef() } : {}),
       };
       await api.post("/orders", orderData);
       if (refreshCart) refreshCart();
+      clearResellerRef();
       showToast("Order placed successfully", "success");
       navigate("/my-orders");
     } catch (err) {
@@ -824,6 +838,8 @@ const MobileCheckout = () => {
                     src={item.product.images?.[0]}
                     alt={item.product.name}
                     className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <span
                     className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-bold text-white"

@@ -3,6 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { api, formatPrice } from "../utils/api";
 import { AuthContext } from "../context/AuthContext";
 import { showToast } from "../utils/toast";
+// Address/phone/pincode validators. These were called throughout this
+// component but never imported, so every checkout interaction threw
+// "validateX is not defined".
+import {
+  validateName,
+  validatePhone,
+  validateAddress,
+  validatePincode,
+  lookupPincode,
+} from "../utils/pincodeService";
+import { getResellerRef, clearResellerRef } from "../utils/resellerRef";
 import Loader from "../components/Loader";
 
 const Checkout = () => {
@@ -79,7 +90,7 @@ const Checkout = () => {
         return;
       }
       setCart(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error loading cart", "error");
       navigate("/cart");
     } finally {
@@ -260,7 +271,7 @@ const Checkout = () => {
               showToast("Payment verification failed", "error");
               setSubmitting(false);
             }
-          } catch (error) {
+          } catch {
             showToast("Payment verification error", "error");
             setSubmitting(false);
           }
@@ -298,8 +309,11 @@ const Checkout = () => {
         paymentMethod: formData.paymentMethod,
         ...(paymentId && { razorpayPaymentId: paymentId }),
         ...(orderId && { razorpayOrderId: orderId }),
+        // Credits the reseller when the shopper arrived via a shared link.
+        ...(getResellerRef() ? { resellerCode: getResellerRef() } : {}),
       };
       await api.post("/orders", orderData);
+      clearResellerRef();
       showToast("Order placed successfully!", "success");
       navigate("/my-orders");
     } catch (error) {
@@ -646,6 +660,8 @@ const Checkout = () => {
                       src={item.product.images[0]}
                       alt={item.product.name}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <span className="absolute -top-1.5 -right-1.5 bg-[#e91e63] text-white w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-bold">
                       {item.quantity}

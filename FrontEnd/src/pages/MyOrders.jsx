@@ -23,7 +23,7 @@ const MyOrders = () => {
     try {
       const response = await api.get("/orders/my-orders");
       setOrders(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching orders", "error");
     } finally {
       setLoading(false);
@@ -224,6 +224,8 @@ const MyOrders = () => {
                       src={item.image}
                       alt={item.name}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                 ))}
@@ -283,6 +285,8 @@ const MyOrders = () => {
                           src={item.image}
                           alt={item.name}
                           className="w-[70px] h-[80px] object-cover rounded"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <div className="flex-1">
                           <p className="font-semibold text-[15px] text-gray-800 m-0 mb-1.5">

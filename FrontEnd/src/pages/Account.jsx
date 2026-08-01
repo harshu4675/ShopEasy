@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
 import { WishlistContext } from "../context/WishlistContext";
 import { NotificationContext } from "../context/NotificationContext";
-import { api, formatPrice } from "../utils/api";
+import { api } from "../utils/api";
 import { showToast } from "../utils/toast";
 
 const matIcon = {
@@ -179,6 +179,21 @@ const Account = () => {
           icon: "local_offer",
           label: "Coupons & Offers",
           desc: "Available discounts",
+        },
+      ],
+    },
+    {
+      title: "Earn With Us",
+      items: [
+        {
+          // Resolves to the hub for approved resellers and to the
+          // application form for everyone else.
+          to: user?.isReseller ? "/reseller" : "/reseller/apply",
+          icon: "storefront",
+          label: user?.isReseller ? "Reseller Hub" : "Become a Reseller",
+          desc: user?.isReseller
+            ? "Products, orders, wallet and analytics"
+            : "Share products and earn on every sale",
         },
       ],
     },

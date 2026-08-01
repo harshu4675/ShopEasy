@@ -15,6 +15,34 @@ const matIcon = {
   display: "inline-block",
 };
 
+const IconButton = ({ to, title, icon, count, label }) => (
+  <Link
+    to={to}
+    title={title}
+    className="group relative flex h-11 w-11 items-center justify-center rounded-xl text-gray-700 no-underline transition-all duration-200 hover:bg-pink-50 hover:text-pink-600 max-md:h-10 max-md:w-10"
+  >
+    <span style={matIcon} className="text-[26px] max-md:text-[24px]">
+      {icon}
+    </span>
+    {count > 0 && (
+      <span
+        className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-bold leading-none text-white"
+        style={{
+          background: "linear-gradient(135deg, #ef4444, #dc2626)",
+          boxShadow: "0 2px 6px rgba(239, 68, 68, 0.4)",
+        }}
+      >
+        {count > 99 ? "99+" : count}
+      </span>
+    )}
+    {label && (
+      <span className="absolute -bottom-4 left-1/2 hidden -translate-x-1/2 text-[10px] font-medium text-gray-500 group-hover:text-pink-600 xl:block">
+        {label}
+      </span>
+    )}
+  </Link>
+);
+
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
   const { unreadCount } = useContext(NotificationContext);
@@ -130,34 +158,6 @@ const Navbar = () => {
     ["/products?category=Accessories", "diamond", "Accessories"],
     ["/coupons", "local_offer", "Offers"],
   ];
-
-  const IconButton = ({ to, title, icon, count, label }) => (
-    <Link
-      to={to}
-      title={title}
-      className="group relative flex h-11 w-11 items-center justify-center rounded-xl text-gray-700 no-underline transition-all duration-200 hover:bg-pink-50 hover:text-pink-600 max-md:h-10 max-md:w-10"
-    >
-      <span style={matIcon} className="text-[26px] max-md:text-[24px]">
-        {icon}
-      </span>
-      {count > 0 && (
-        <span
-          className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-bold leading-none text-white"
-          style={{
-            background: "linear-gradient(135deg, #ef4444, #dc2626)",
-            boxShadow: "0 2px 6px rgba(239, 68, 68, 0.4)",
-          }}
-        >
-          {count > 99 ? "99+" : count}
-        </span>
-      )}
-      {label && (
-        <span className="absolute -bottom-4 left-1/2 hidden -translate-x-1/2 text-[10px] font-medium text-gray-500 group-hover:text-pink-600 xl:block">
-          {label}
-        </span>
-      )}
-    </Link>
-  );
 
   return (
     <>
@@ -383,6 +383,17 @@ const Navbar = () => {
                               to: "/my-returns",
                               icon: "assignment_return",
                               label: "Returns",
+                            },
+                            {
+                              // Approved resellers go to the hub, everyone
+                              // else to the application form.
+                              to: user.isReseller
+                                ? "/reseller"
+                                : "/reseller/apply",
+                              icon: "storefront",
+                              label: user.isReseller
+                                ? "Reseller Hub"
+                                : "Become a Reseller",
                             },
                           ].map(({ to, icon, label, badge }) => (
                             <Link
@@ -634,6 +645,11 @@ const Navbar = () => {
                   to: "/my-returns",
                   icon: "assignment_return",
                   label: "Returns",
+                },
+                {
+                  to: user.isReseller ? "/reseller" : "/reseller/apply",
+                  icon: "storefront",
+                  label: user.isReseller ? "Reseller Hub" : "Become a Reseller",
                 },
               ].map(({ to, icon, label, badge }) => (
                 <li key={to}>

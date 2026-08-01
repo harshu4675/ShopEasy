@@ -1,22 +1,136 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, {
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
-import { api, formatPrice, trendingAPI, bannersAPI } from "../utils/api";
+import { cachedGet, formatPrice, trendingAPI, bannersAPI } from "../utils/api";
 import { AuthContext } from "../context/AuthContext";
 import { getRecentlyViewed } from "../utils/recentlyViewed";
 import ProductCard from "./ProductCard";
+import HomeBannerCarousel from "./HomeBannerCarousel";
+import SmartImage from "./SmartImage";
+import { matIcon } from "../utils/fonts";
+import useGoogleFonts from "../hooks/useGoogleFonts";
 
-const matIcon = {
-  fontFamily: '"Material Symbols Outlined"',
-  fontWeight: "normal",
-  fontStyle: "normal",
-  lineHeight: 1,
-  display: "inline-block",
-};
+/** Hoisted: constant across renders, so child props stay referentially stable. */
+const CATEGORIES = [
+  { name: "All Categories", icon: "apps", param: "" },
+  { name: "Women's Clothing", icon: "woman", param: "Women's Clothing" },
+  { name: "Men's Clothing", icon: "checkroom", param: "Men's Clothing" },
+  { name: "Kids' Clothing", icon: "child_care", param: "Kids' Clothing" },
+  { name: "Perfumes", icon: "spa", param: "Perfumes" },
+  { name: "Watches", icon: "watch", param: "Watches" },
+  { name: "Sunglasses", icon: "sunny", param: "Sunglasses" },
+  { name: "Bags & Wallets", icon: "backpack", param: "Bags & Wallets" },
+  { name: "Jewelry", icon: "diamond", param: "Jewelry" },
+  { name: "Footwear", icon: "footprint", param: "Footwear" },
+  { name: "Accessories", icon: "auto_awesome", param: "Accessories" },
+];
+
+/** Module-scope component: stable type, so sections are never remounted. */
+const SectionHeader = memo(({ icon, iconBg, title, subtitle, link }) => (
+  <div className="mb-3 flex items-center justify-between px-2">
+    <div className="flex items-center gap-3">
+      <div
+        className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md"
+        style={{ background: iconBg }}
+      >
+        <span style={matIcon} className="text-[20px] text-white">
+          {icon}
+        </span>
+      </div>
+      <div>
+        <h2 className="m-0 text-lg font-bold text-gray-900">{title}</h2>
+        {subtitle && <p className="m-0 text-xs text-gray-500">{subtitle}</p>}
+      </div>
+    </div>
+    {link && (
+      <Link
+        to={link}
+        className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-pink-600 no-underline shadow-sm transition-all hover:shadow-md"
+      >
+        See all
+        <span style={matIcon} className="text-[14px]">
+          arrow_forward
+        </span>
+      </Link>
+    )}
+  </div>
+));
+SectionHeader.displayName = "SectionHeader";
+
+/** Memoised so banner rotations cannot reset horizontal scroll offsets. */
+const HorizontalProductRow = memo(({ items }) => (
+  <div className="scrollbar-none flex gap-3 overflow-x-auto px-2 pb-2">
+    {items.map((product) => {
+      const disc = product.originalPrice
+        ? Math.round(
+            ((product.originalPrice - product.price) / product.originalPrice) *
+              100,
+          )
+        : product.discount || 0;
+      return (
+        <Link
+          key={product._id}
+          to={`/product/${product._id}`}
+          className="block w-[180px] shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline transition-all hover:-translate-y-1 hover:shadow-lg"
+        >
+          <div className="relative aspect-square bg-white">
+            <SmartImage
+              src={product.images?.[0]}
+              alt={product.name}
+              className="h-full w-full object-contain p-2"
+              width={240}
+              sizes="180px"
+            />
+            {disc > 0 && (
+              <span
+                className="absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold text-white shadow-md"
+                style={{
+                  background: "linear-gradient(135deg, #831843, #be185d)",
+                }}
+              >
+                {disc}% OFF
+              </span>
+            )}
+          </div>
+          <div className="p-2">
+            <p
+              className="m-0 mb-1 text-xs font-semibold text-gray-800"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                minHeight: "32px",
+              }}
+            >
+              {product.name}
+            </p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-sm font-bold text-gray-900">
+                {formatPrice(product.price)}
+              </span>
+              {product.originalPrice > product.price && (
+                <span className="text-[10px] text-gray-400 line-through">
+                  {formatPrice(product.originalPrice)}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
+      );
+    })}
+  </div>
+));
+HorizontalProductRow.displayName = "HorizontalProductRow";
 
 const DesktopHome = () => {
   const { user } = useContext(AuthContext);
   const [banners, setBanners] = useState([]);
-  const [bannerIndex, setBannerIndex] = useState(0);
   const [trending, setTrending] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -26,198 +140,95 @@ const DesktopHome = () => {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [copyText, setCopyText] = useState("COPY");
 
+  useGoogleFonts(
+    "desktop-home-fonts",
+    "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Great+Vibes&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap",
+  );
+
   useEffect(() => {
-    const fontId = "desktop-home-fonts";
-    if (!document.getElementById(fontId)) {
-      const link = document.createElement("link");
-      link.id = fontId;
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Great+Vibes&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap";
-      document.head.appendChild(link);
-    }
-    const dismissed = sessionStorage.getItem("desktopWelcomeBannerDismissed");
-    if (dismissed === "true") setBannerDismissed(true);
-  }, []);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [bannerRes, trendRes, newRes, dealsRes, allRes] = await Promise.all(
-        [
-          bannersAPI.getActive().catch(() => ({ data: [] })),
-          trendingAPI.get(15).catch(() => ({ data: [] })),
-          api.get("/products?sort=newest&limit=15").catch(() => ({ data: [] })),
-          api
-            .get("/products?sort=discount&limit=15")
-            .catch(() => ({ data: [] })),
-          api.get("/products?limit=40").catch(() => ({ data: [] })),
-        ],
-      );
-
-      setBanners(Array.isArray(bannerRes.data) ? bannerRes.data : []);
-
-      const extract = (r) =>
-        Array.isArray(r.data) ? r.data : r.data?.products || [];
-
-      const trendArr = extract(trendRes).slice(0, 15);
-      const newArr = extract(newRes).slice(0, 15);
-      const dealArr = extract(dealsRes)
-        .filter((p) => (p.discount || 0) > 0 || p.originalPrice > p.price)
-        .slice(0, 15);
-      const all = extract(allRes);
-
-      setTrending(trendArr);
-      setNewArrivals(newArr);
-      setDeals(dealArr);
-
-      const usedIds = new Set([
-        ...trendArr.map((p) => p._id),
-        ...newArr.map((p) => p._id),
-        ...dealArr.map((p) => p._id),
-      ]);
-      const remaining = all.filter((p) => !usedIds.has(p._id)).slice(0, 30);
-      setProducts(remaining);
-
-      setRecentlyViewed(getRecentlyViewed(15));
-    } catch (err) {
-      console.error("Home data error:", err);
-    } finally {
-      setLoading(false);
+    if (sessionStorage.getItem("desktopWelcomeBannerDismissed") === "true") {
+      setBannerDismissed(true);
     }
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [bannerRes, trendRes, newRes, dealsRes, allRes] =
+          await Promise.all([
+            bannersAPI.getActive().catch(() => ({ data: [] })),
+            trendingAPI.get(15).catch(() => ({ data: [] })),
+            cachedGet("/products", {
+              params: { sort: "newest", limit: 15 },
+              ttl: 120_000,
+              persist: true,
+              swr: true,
+            }).catch(() => ({ data: [] })),
+            cachedGet("/products", {
+              params: { sort: "discount", limit: 15 },
+              ttl: 120_000,
+              persist: true,
+              swr: true,
+            }).catch(() => ({ data: [] })),
+            cachedGet("/products", {
+              params: { limit: 40 },
+              ttl: 120_000,
+              persist: true,
+              swr: true,
+            }).catch(() => ({ data: [] })),
+          ]);
+
+        if (cancelled) return;
+
+        setBanners(Array.isArray(bannerRes.data) ? bannerRes.data : []);
+
+        const extract = (r) =>
+          Array.isArray(r.data) ? r.data : r.data?.products || [];
+
+        const trendArr = extract(trendRes).slice(0, 15);
+        const newArr = extract(newRes).slice(0, 15);
+        const dealArr = extract(dealsRes)
+          .filter((p) => (p.discount || 0) > 0 || p.originalPrice > p.price)
+          .slice(0, 15);
+        const all = extract(allRes);
+
+        setTrending(trendArr);
+        setNewArrivals(newArr);
+        setDeals(dealArr);
+
+        const usedIds = new Set([
+          ...trendArr.map((p) => p._id),
+          ...newArr.map((p) => p._id),
+          ...dealArr.map((p) => p._id),
+        ]);
+        setProducts(all.filter((p) => !usedIds.has(p._id)).slice(0, 30));
+        setRecentlyViewed(getRecentlyViewed(15));
+      } catch (err) {
+        if (!cancelled) console.error("Home data error:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     fetchData();
-  }, [fetchData]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const timer = setInterval(() => {
-      setBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [banners.length]);
-
-  const handleCloseBanner = () => {
+  const handleCloseBanner = useCallback(() => {
     setBannerDismissed(true);
     sessionStorage.setItem("desktopWelcomeBannerDismissed", "true");
-  };
+  }, []);
 
-  const copyCode = () => {
+  const copyCode = useCallback(() => {
     navigator.clipboard.writeText("WELCOME100");
     setCopyText("COPIED");
     setTimeout(() => setCopyText("COPY"), 2000);
-  };
-
-  const categories = [
-    { name: "All Categories", icon: "apps", param: "" },
-    { name: "Women's Clothing", icon: "woman", param: "Women's Clothing" },
-    { name: "Men's Clothing", icon: "checkroom", param: "Men's Clothing" },
-    { name: "Kids' Clothing", icon: "child_care", param: "Kids' Clothing" },
-    { name: "Perfumes", icon: "spa", param: "Perfumes" },
-    { name: "Watches", icon: "watch", param: "Watches" },
-    { name: "Sunglasses", icon: "sunny", param: "Sunglasses" },
-    { name: "Bags & Wallets", icon: "backpack", param: "Bags & Wallets" },
-    { name: "Jewelry", icon: "diamond", param: "Jewelry" },
-    { name: "Footwear", icon: "footprint", param: "Footwear" },
-    { name: "Accessories", icon: "auto_awesome", param: "Accessories" },
-  ];
-
-  const currentBanner = banners[bannerIndex];
-
-  const SectionHeader = ({ icon, iconBg, title, subtitle, link }) => (
-    <div className="mb-3 flex items-center justify-between px-2">
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md"
-          style={{ background: iconBg }}
-        >
-          <span style={matIcon} className="text-[20px] text-white">
-            {icon}
-          </span>
-        </div>
-        <div>
-          <h2 className="m-0 text-lg font-bold text-gray-900">{title}</h2>
-          {subtitle && <p className="m-0 text-xs text-gray-500">{subtitle}</p>}
-        </div>
-      </div>
-      {link && (
-        <Link
-          to={link}
-          className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-pink-600 no-underline shadow-sm transition-all hover:shadow-md"
-        >
-          See all
-          <span style={matIcon} className="text-[14px]">
-            arrow_forward
-          </span>
-        </Link>
-      )}
-    </div>
-  );
-
-  const HorizontalProductRow = ({ items }) => (
-    <div className="scrollbar-none flex gap-3 overflow-x-auto px-2 pb-2">
-      {items.map((product) => {
-        const disc = product.originalPrice
-          ? Math.round(
-              ((product.originalPrice - product.price) /
-                product.originalPrice) *
-                100,
-            )
-          : product.discount || 0;
-        return (
-          <Link
-            key={product._id}
-            to={`/product/${product._id}`}
-            className="block w-[180px] shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline transition-all hover:-translate-y-1 hover:shadow-lg"
-          >
-            <div className="relative aspect-square bg-white">
-              <img
-                src={product.images?.[0]}
-                alt={product.name}
-                className="h-full w-full object-contain p-2"
-              />
-              {disc > 0 && (
-                <span
-                  className="absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold text-white shadow-md"
-                  style={{
-                    background: "linear-gradient(135deg, #831843, #be185d)",
-                  }}
-                >
-                  {disc}% OFF
-                </span>
-              )}
-            </div>
-            <div className="p-2">
-              <p
-                className="m-0 mb-1 text-xs font-semibold text-gray-800"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  minHeight: "32px",
-                }}
-              >
-                {product.name}
-              </p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-sm font-bold text-gray-900">
-                  {formatPrice(product.price)}
-                </span>
-                {product.originalPrice > product.price && (
-                  <span className="text-[10px] text-gray-400 line-through">
-                    {formatPrice(product.originalPrice)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
-  );
+  }, []);
 
   return (
     <div
@@ -305,77 +316,13 @@ const DesktopHome = () => {
         </Link>
       )}
 
-      {banners.length > 0 && currentBanner && (
-        <div className="mt-3 px-3">
-          <Link
-            to={currentBanner.link || "/products"}
-            className="relative block w-full overflow-hidden rounded-2xl bg-gray-100 no-underline shadow-lg"
-            style={{ maxHeight: "568px" }}
-          >
-            <img
-              src={currentBanner.image}
-              alt={currentBanner.title || "Banner"}
-              className="block w-full object-cover"
-              style={{ maxHeight: "568px", objectPosition: "center" }}
-            />
-            {(currentBanner.title || currentBanner.subtitle) && (
-              <div
-                className="absolute inset-0 flex flex-col justify-end p-6"
-                style={{
-                  background: `linear-gradient(180deg, transparent 40%, rgba(0,0,0,${currentBanner.overlayOpacity || 0.4}) 100%)`,
-                  color: currentBanner.textColor || "#ffffff",
-                }}
-              >
-                {currentBanner.subtitle && (
-                  <span className="mb-2 inline-block self-start rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
-                    {currentBanner.subtitle}
-                  </span>
-                )}
-                {currentBanner.title && (
-                  <h3 className="m-0 max-w-2xl text-2xl font-extrabold leading-tight drop-shadow-lg">
-                    {currentBanner.title}
-                  </h3>
-                )}
-                {currentBanner.buttonText && (
-                  <div className="mt-3">
-                    <span
-                      className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-xs font-bold text-white shadow-xl"
-                      style={{
-                        background: "linear-gradient(135deg, #831843, #ec4899)",
-                      }}
-                    >
-                      {currentBanner.buttonText}
-                      <span style={matIcon} className="text-[14px]">
-                        arrow_forward
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-            {banners.length > 1 && (
-              <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-                {banners.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setBannerIndex(i);
-                    }}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === bannerIndex ? "w-8 bg-white" : "w-1.5 bg-white/50"
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
-          </Link>
-        </div>
-      )}
+      {/* Isolated: rotating this carousel no longer re-renders the page.
+          See components/HomeBannerCarousel.jsx */}
+      <HomeBannerCarousel banners={banners} variant="desktop" />
 
       <div className="mt-3 bg-white py-3">
         <div className="scrollbar-none flex justify-between gap-3 overflow-x-auto px-4">
-          {categories.map((cat) => (
+          {CATEGORIES.map((cat) => (
             <Link
               key={cat.name}
               to={
@@ -508,4 +455,5 @@ const DesktopHome = () => {
   );
 };
 
-export default DesktopHome;
+/** Memoised so context updates elsewhere don't re-render the whole home tree. */
+export default memo(DesktopHome);

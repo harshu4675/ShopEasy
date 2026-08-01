@@ -1,123 +1,111 @@
-import React, { useContext, useState, useEffect, useCallback } from "react";
+import React, { memo, useContext, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { CartContext } from "../context/CartContext";
-import { WishlistContext } from "../context/WishlistContext";
-import { api, formatPrice } from "../utils/api";
+import { useCartActions } from "../context/CartContext";
+import { useWishlistActions } from "../context/WishlistContext";
+import { useCatalogState } from "../context/CatalogStateContext";
+import { api, formatPrice, invalidateCache, CACHE_KEYS } from "../utils/api";
 import { showToast } from "../utils/toast";
-
-const matIcon = {
-  fontFamily: '"Material Symbols Outlined"',
-  fontWeight: "normal",
-  fontStyle: "normal",
-  lineHeight: 1,
-  display: "inline-block",
-};
+import SmartImage from "./SmartImage";
+import { matIcon } from "../utils/fonts";
 
 const ProductCard = ({ product }) => {
   const { user } = useContext(AuthContext);
-  const { refreshCart } = useContext(CartContext) || {};
-  const { refreshWishlist } = useContext(WishlistContext) || {};
+  // Action-only contexts: these values never change, so a cart or wishlist
+  // count update elsewhere on the page cannot re-render this card.
+  const { refreshCart } = useCartActions();
+  const { refreshWishlist } = useWishlistActions();
+  const { cartIds, wishlistIds, markInCart, markInWishlist } =
+    useCatalogState();
 
-  const [inWishlist, setInWishlist] = useState(false);
-  const [inCart, setInCart] = useState(false);
   const [loading, setLoading] = useState({ cart: false, wishlist: false });
 
-  const checkStatus = useCallback(async () => {
-    if (!user) {
-      setInWishlist(false);
-      setInCart(false);
-      return;
-    }
+  // Membership is an O(1) set lookup against data fetched once for the whole
+  // page, instead of a per-card fetch plus array scan.
+  const productId = String(product._id);
+  const inCart = cartIds.has(productId);
+  const inWishlist = wishlistIds.has(productId);
 
-    try {
-      const [wishRes, cartRes] = await Promise.all([
-        api.get("/wishlist").catch(() => ({ data: { products: [] } })),
-        api.get("/cart").catch(() => ({ data: { items: [] } })),
-      ]);
-
-      const wishItems = wishRes.data?.products || [];
-      const isInWish = wishItems.some((item) => {
-        const id = item._id || item.product?._id || item;
-        return id?.toString() === product._id?.toString();
-      });
-      setInWishlist(isInWish);
-
-      const cartItems = cartRes.data?.items || [];
-      const isInCart = cartItems.some((item) => {
-        const id = item.product?._id || item.product || item._id;
-        return id?.toString() === product._id?.toString();
-      });
-      setInCart(isInCart);
-    } catch (err) {
-      // silent fail
-    }
-  }, [user, product._id]);
-
-  useEffect(() => {
-    checkStatus();
-  }, [checkStatus]);
-
-  const addToCart = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user) {
-      showToast("Please login to add items to cart", "error");
-      return;
-    }
-    if (loading.cart || inCart) return;
-
-    setLoading((prev) => ({ ...prev, cart: true }));
-    try {
-      await api.post("/cart/add", {
-        productId: product._id,
-        quantity: 1,
-        size: product.sizes?.[0] || "",
-        color: product.colors?.[0]?.name || "",
-      });
-      setInCart(true);
-      if (refreshCart) refreshCart();
-      showToast("Added to cart", "success");
-    } catch (error) {
-      showToast(
-        error.response?.data?.message || "Error adding to cart",
-        "error",
-      );
-    } finally {
-      setLoading((prev) => ({ ...prev, cart: false }));
-    }
-  };
-
-  const toggleWishlist = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user) {
-      showToast("Please login to add to wishlist", "error");
-      return;
-    }
-    if (loading.wishlist) return;
-
-    setLoading((prev) => ({ ...prev, wishlist: true }));
-    try {
-      if (inWishlist) {
-        await api.delete(`/wishlist/remove/${product._id}`);
-        setInWishlist(false);
-        showToast("Removed from wishlist", "success");
-      } else {
-        await api.post(`/wishlist/add/${product._id}`);
-        setInWishlist(true);
-        showToast("Added to wishlist", "success");
+  const addToCart = useCallback(
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!user) {
+        showToast("Please login to add items to cart", "error");
+        return;
       }
-      if (refreshWishlist) refreshWishlist();
-    } catch (error) {
-      showToast(
-        error.response?.data?.message || "Error updating wishlist",
-        "error",
-      );
-    } finally {
-      setLoading((prev) => ({ ...prev, wishlist: false }));
-    }
-  };
+      if (loading.cart || inCart) return;
+
+      // Optimistic: flip the shared set immediately, roll back if the call fails.
+      setLoading((prev) => ({ ...prev, cart: true }));
+      markInCart(productId, true);
+      try {
+        await api.post("/cart/add", {
+          productId: product._id,
+          quantity: 1,
+          size: product.sizes?.[0] || "",
+          color: product.colors?.[0]?.name || "",
+        });
+        invalidateCache(CACHE_KEYS.cart);
+        if (refreshCart) refreshCart();
+        showToast("Added to cart", "success");
+      } catch (error) {
+        markInCart(productId, false);
+        showToast(
+          error.response?.data?.message || "Error adding to cart",
+          "error",
+        );
+      } finally {
+        setLoading((prev) => ({ ...prev, cart: false }));
+      }
+    },
+    [user, loading.cart, inCart, product, productId, markInCart, refreshCart],
+  );
+
+  const toggleWishlist = useCallback(
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!user) {
+        showToast("Please login to add to wishlist", "error");
+        return;
+      }
+      if (loading.wishlist) return;
+
+      // Optimistic toggle with rollback on failure.
+      const previous = inWishlist;
+      setLoading((prev) => ({ ...prev, wishlist: true }));
+      markInWishlist(productId, !previous);
+      try {
+        if (previous) {
+          await api.delete(`/wishlist/remove/${product._id}`);
+          showToast("Removed from wishlist", "success");
+        } else {
+          await api.post(`/wishlist/add/${product._id}`);
+          showToast("Added to wishlist", "success");
+        }
+        invalidateCache(CACHE_KEYS.wishlist);
+        if (refreshWishlist) refreshWishlist();
+      } catch (error) {
+        markInWishlist(productId, previous);
+        showToast(
+          error.response?.data?.message || "Error updating wishlist",
+          "error",
+        );
+      } finally {
+        setLoading((prev) => ({ ...prev, wishlist: false }));
+      }
+    },
+    [
+      user,
+      loading.wishlist,
+      inWishlist,
+      product._id,
+      productId,
+      markInWishlist,
+      refreshWishlist,
+    ],
+  );
 
   const discountPercent = product.originalPrice
     ? Math.round(
@@ -157,10 +145,12 @@ const ProductCard = ({ product }) => {
         className="relative w-full overflow-hidden bg-white"
         style={{ paddingTop: "100%" }}
       >
-        <img
-          src={product.images[0]}
+        <SmartImage
+          src={product.images?.[0]}
           alt={product.name}
           className="absolute inset-0 h-full w-full border-none object-contain p-2"
+          width={320}
+          sizes="(max-width: 480px) 45vw, (max-width: 768px) 33vw, 240px"
         />
         <div className="absolute bottom-0 left-0 right-0 z-[5] flex translate-y-5 justify-center gap-[10px] bg-[linear-gradient(to_top,rgba(255,255,255,0.95)_0%,transparent_100%)] px-3 py-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 max-md:hidden">
           <button
@@ -329,4 +319,9 @@ const ProductCard = ({ product }) => {
   );
 };
 
-export default ProductCard;
+/**
+ * Memoised on the product reference. Home/listing pages hold products in state
+ * arrays that keep their identity between renders, so cards no longer re-render
+ * when an unrelated part of the page updates (e.g. a banner rotation).
+ */
+export default memo(ProductCard);

@@ -640,6 +640,8 @@ const Dashboard = () => {
                       src={product.images[0]}
                       alt={product.name}
                       className="h-11 w-11 shrink-0 rounded-lg border border-gray-200 object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="m-0 truncate text-xs font-semibold text-gray-900">

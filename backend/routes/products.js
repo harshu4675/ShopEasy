@@ -63,11 +63,14 @@ router.get("/", async (req, res) => {
     if (subCategory) query.subCategory = subCategory;
     if (brand) query.brand = { $regex: brand, $options: "i" };
     if (search) {
+      const term = String(search).trim();
+      // Escape regex metacharacters: an unescaped user string is both a
+      // correctness bug and a ReDoS vector.
+      const safe = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { brand: { $regex: search, $options: "i" } },
-        { subCategory: { $regex: search, $options: "i" } },
+        { name: { $regex: safe, $options: "i" } },
+        { brand: { $regex: safe, $options: "i" } },
+        { subCategory: { $regex: safe, $options: "i" } },
       ];
     }
     if (minPrice || maxPrice) {
@@ -77,33 +80,28 @@ router.get("/", async (req, res) => {
     }
     if (size) query.sizes = size;
 
-    let products = Product.find(query);
+    const SORTS = {
+      "price-asc": { price: 1 },
+      "price-desc": { price: -1 },
+      rating: { rating: -1 },
+      newest: { createdAt: -1 },
+      discount: { discount: -1 },
+    };
 
-    switch (sort) {
-      case "price-asc":
-        products = products.sort({ price: 1 });
-        break;
-      case "price-desc":
-        products = products.sort({ price: -1 });
-        break;
-      case "rating":
-        products = products.sort({ rating: -1 });
-        break;
-      case "newest":
-        products = products.sort({ createdAt: -1 });
-        break;
-      case "discount":
-        products = products.sort({ discount: -1 });
-        break;
-      default:
-        products = products.sort({ createdAt: -1 });
-    }
+    // Hard cap: without one a client can request the entire collection and
+    // stall the instance.
+    const pageSize = Math.min(Number(limit) || 40, 100);
 
-    if (limit) {
-      products = products.limit(Number(limit));
-    }
+    const result = await Product.find(query)
+      .sort(SORTS[sort] || { createdAt: -1 })
+      .limit(pageSize)
+      // Only the fields the product grid renders. Dropping `description` alone
+      // cuts the payload substantially on a 40-item response.
+      .select(
+        "name price originalPrice discount category subCategory brand images rating numReviews stock sizes colors isTrending salesCount createdAt",
+      )
+      .lean();
 
-    const result = await products;
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -113,7 +111,7 @@ router.get("/", async (req, res) => {
 // Get single product
 router.get("/:id", async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).lean();
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
@@ -233,7 +231,7 @@ router.put("/:id", auth, admin, upload.array("images", 5), async (req, res) => {
 // Delete product (Admin)
 router.delete("/:id", auth, admin, async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).lean();
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }

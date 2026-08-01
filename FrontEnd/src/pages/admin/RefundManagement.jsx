@@ -45,7 +45,7 @@ const RefundManagement = () => {
         `/orders/admin/refund-requests?status=${filter}`,
       );
       setRefundRequests(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching refund requests", "error");
     } finally {
       setLoading(false);
@@ -494,6 +494,8 @@ const RefundManagement = () => {
                               src={proofPreview}
                               alt="Payment proof preview"
                               className="max-h-40 rounded-lg border border-gray-200"
+                              loading="lazy"
+                              decoding="async"
                             />
                           </div>
                         )}

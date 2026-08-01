@@ -26,7 +26,7 @@ const AllOrders = () => {
       if (searchTerm) params.append("search", searchTerm);
       const response = await api.get(`/orders/admin/all?${params.toString()}`);
       setOrders(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching orders", "error");
     } finally {
       setLoading(false);
@@ -38,7 +38,7 @@ const AllOrders = () => {
       await api.put(`/orders/${orderId}/status`, { orderStatus: newStatus });
       showToast("Order status updated successfully", "success");
       fetchOrders();
-    } catch (error) {
+    } catch {
       showToast("Error updating order status", "error");
     }
   };
@@ -50,7 +50,7 @@ const AllOrders = () => {
       });
       showToast("Payment status updated successfully", "success");
       fetchOrders();
-    } catch (error) {
+    } catch {
       showToast("Error updating payment status", "error");
     }
   };
@@ -561,6 +561,8 @@ const AllOrders = () => {
                         src={item.image}
                         alt={item.name}
                         className="w-20 h-20 object-cover rounded-lg md:w-full md:h-[150px]"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <div className="flex-1">
                         <p className="font-semibold m-0 mb-1 text-gray-800">

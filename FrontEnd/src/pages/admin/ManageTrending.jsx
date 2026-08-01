@@ -75,7 +75,7 @@ const ManageTrending = () => {
           ? res.data
           : res.data?.products || [];
         setSearchResults(data.slice(0, 12));
-      } catch (err) {
+      } catch {
         setSearchResults([]);
       } finally {
         setSearchLoading(false);
@@ -117,7 +117,7 @@ const ManageTrending = () => {
       const orders = pinned.map((p, i) => ({ id: p._id, order: i }));
       await trendingAPI.reorder(orders);
       showToast("Order saved", "success");
-    } catch (err) {
+    } catch {
       showToast("Failed to save order", "error");
       fetchData();
     }
@@ -347,6 +347,8 @@ const ManageTrending = () => {
                       src={product.images?.[0]}
                       alt={product.name}
                       className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     {product.salesCount > 0 && (
                       <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-gray-800 backdrop-blur-md">
@@ -493,6 +495,8 @@ const ManageTrending = () => {
                             src={product.images?.[0]}
                             alt={product.name}
                             className="h-12 w-12 shrink-0 rounded-lg border border-gray-200 object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                           <div className="min-w-0">
                             <p className="m-0 truncate text-sm font-semibold text-gray-900">
@@ -667,6 +671,8 @@ const ManageTrending = () => {
                             src={product.images?.[0]}
                             alt={product.name}
                             className="h-14 w-14 shrink-0 rounded-lg border border-gray-200 object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                           <div className="min-w-0 flex-1">
                             <p className="m-0 truncate text-sm font-semibold text-gray-900">

@@ -68,6 +68,8 @@ const ReviewCard = ({ review, onDelete, isAdmin }) => {
             src={review.image}
             alt="Review"
             className="w-full cursor-pointer rounded-[6px] transition-transform duration-200 hover:scale-[1.02]"
+            loading="lazy"
+            decoding="async"
           />
         </div>
       )}

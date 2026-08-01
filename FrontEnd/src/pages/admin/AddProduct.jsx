@@ -50,7 +50,7 @@ const AddProduct = () => {
       try {
         const res = await categoriesAPI.getAll();
         setCategories(Array.isArray(res.data) ? res.data : []);
-      } catch (error) {
+      } catch {
         showToast("Error loading categories", "error");
       } finally {
         setCategoriesLoading(false);
@@ -549,6 +549,8 @@ const AddProduct = () => {
                         src={URL.createObjectURL(file)}
                         alt={`Preview ${index + 1}`}
                         className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                       {index === 0 && (
                         <span

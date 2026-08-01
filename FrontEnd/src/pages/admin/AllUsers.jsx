@@ -16,7 +16,7 @@ const AllUsers = () => {
     try {
       const response = await api.get("/admin/users");
       setUsers(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching users", "error");
     } finally {
       setLoading(false);

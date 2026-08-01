@@ -11,8 +11,34 @@ import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
 precacheAndRoute(self.__WB_MANIFEST || []);
 
+/*
+ * Analytics and advertising endpoints are left entirely to the network.
+ *
+ * Google's ga-audiences beacon has an image destination, so it was being
+ * matched by the image rule below. CacheFirst then rejects when the request
+ * fails, and ad blockers or tracking-protection settings block these beacons
+ * constantly, producing a stream of uncaught "no-response" errors in the
+ * console. These requests are fire-and-forget telemetry; the service worker
+ * has no reason to see them at all.
+ */
+const ANALYTICS_HOSTS = [
+  "google-analytics.com",
+  "googletagmanager.com",
+  "googleadservices.com",
+  "googlesyndication.com",
+  "doubleclick.net",
+  "facebook.net",
+  "facebook.com",
+];
+
+const isAnalyticsRequest = (url) =>
+  ANALYTICS_HOSTS.some(
+    (host) => url.hostname === host || url.hostname.endsWith(`.${host}`),
+  ) || url.pathname.startsWith("/ads/");
+
 registerRoute(
-  ({ request }) => request.destination === "image",
+  ({ url, request }) =>
+    request.destination === "image" && !isAnalyticsRequest(url),
   new CacheFirst({
     cacheName: "images",
     plugins: [

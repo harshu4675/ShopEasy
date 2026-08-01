@@ -28,7 +28,7 @@ const Wishlist = () => {
     try {
       const response = await api.get("/wishlist");
       setWishlist(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error loading wishlist", "error");
     } finally {
       setLoading(false);
@@ -40,7 +40,7 @@ const Wishlist = () => {
       const response = await api.delete(`/wishlist/remove/${productId}`);
       setWishlist(response.data);
       showToast("Removed from wishlist", "success");
-    } catch (error) {
+    } catch {
       showToast("Error removing item", "error");
     }
   };
@@ -132,6 +132,8 @@ const Wishlist = () => {
                   src={product.images[0]}
                   alt={product.name}
                   className="absolute inset-0 h-full w-full object-cover transition-transform duration-[400ms] ease-in-out hover:scale-[1.05]"
+                  loading="lazy"
+                  decoding="async"
                 />
                 {product.discount > 0 && (
                   <span className="absolute bottom-3 left-3 rounded-[4px] bg-[#667eea] px-3 py-[6px] text-[12px] font-bold text-white">

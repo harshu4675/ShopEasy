@@ -14,7 +14,7 @@ const matIcon = {
 const SearchSuggestions = ({
   query,
   onSelect,
-  onClose,
+  onClose: _onClose,
   placement = "desktop",
 }) => {
   const [results, setResults] = useState([]);
@@ -135,6 +135,8 @@ const SearchSuggestions = ({
                     src={product.images?.[0]}
                     alt={product.name}
                     className="h-14 w-14 shrink-0 rounded-lg border border-gray-100 bg-gray-50 object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="m-0 mb-0.5 truncate text-sm font-semibold text-gray-800">

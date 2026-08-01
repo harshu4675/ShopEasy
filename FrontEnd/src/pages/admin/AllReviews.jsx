@@ -15,7 +15,7 @@ const AllReviews = () => {
     try {
       const response = await api.get("/reviews/all");
       setReviews(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching reviews", "error");
     } finally {
       setLoading(false);
@@ -28,7 +28,7 @@ const AllReviews = () => {
       await api.delete(`/reviews/${id}`);
       setReviews(reviews.filter((r) => r._id !== id));
       showToast("Review deleted successfully", "success");
-    } catch (error) {
+    } catch {
       showToast("Error deleting review", "error");
     }
   };
@@ -101,6 +101,8 @@ const AllReviews = () => {
                       src={review.image}
                       alt="Review"
                       className="w-full rounded-sm"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                 )}

@@ -30,7 +30,7 @@ const ManageCoupons = () => {
     try {
       const response = await api.get("/coupons/all");
       setCoupons(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching coupons", "error");
     } finally {
       setLoading(false);
@@ -105,7 +105,7 @@ const ManageCoupons = () => {
       await api.delete(`/coupons/${id}`);
       setCoupons(coupons.filter((c) => c._id !== id));
       showToast("Coupon deleted successfully", "success");
-    } catch (error) {
+    } catch {
       showToast("Error deleting coupon", "error");
     }
   };
@@ -118,7 +118,7 @@ const ManageCoupons = () => {
         `Coupon ${coupon.isActive ? "deactivated" : "activated"}`,
         "success",
       );
-    } catch (error) {
+    } catch {
       showToast("Error updating coupon", "error");
     }
   };

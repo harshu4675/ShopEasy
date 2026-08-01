@@ -2,11 +2,6 @@
 
 <html lang="en">
   <head>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#831843" />
@@ -18,19 +13,46 @@
     <meta name="apple-mobile-web-app-title" content="Talish" />
     <meta name="mobile-web-app-capable" content="yes" />
 
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=G-JLSTJZ72FL"
-    ></script>
+    <!-- Preconnect: warm the TLS handshakes the critical path depends on -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link
+      rel="preconnect"
+      href="https://shopeasy-ecommerce-app.onrender.com"
+      crossorigin
+    />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
-      gtag("config", "G-JLSTJZ72FL");
-    </script>
+    <!--
+      Single, consolidated Google Fonts request.
+
+      Replaces ~15 duplicate runtime <link> injections (one per component) that
+      each re-requested Poppins / Inter / Great Vibes / Cinzel / Material
+      Symbols. Same families and weights the UI actually uses, so rendering is
+      unchanged; unused weights (Poppins 300, 900, Cinzel 800/900) are dropped.
+
+      Loaded non-blocking: `media="print"` + onload swap lets the browser paint
+      immediately, and `display=swap` guarantees text is never invisible.
+    -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Great+Vibes&family=Cinzel:wght@700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Great+Vibes&family=Cinzel:wght@700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Great+Vibes&family=Cinzel:wght@700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap"
+      />
+    </noscript>
 
     <!-- Google Search Console Verification -->
 
@@ -104,18 +126,6 @@
       content="https://talishclothes.netlify.app/logo192.png"
     />
 
-    <!-- Preconnect -->
-
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-    <!-- Google Fonts -->
-
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-
     <!-- Organization Schema -->
 
     <script type="application/ld+json">
@@ -124,8 +134,11 @@
         "@type": "Organization",
         "name": "TalishClothes",
         "url": "https://talishclothes.netlify.app",
-        "logo": "https://https://talishclothes.netlify.app/logo192.png",
-        "sameAs": ["https://github.com/", "https://linkedin.com/"],
+        "logo": "https://talishclothes.netlify.app/logo192.png",
+        "sameAs": [
+          "https://www.facebook.com/talishfinds",
+          "https://www.instagram.com/talishfinds"
+        ],
         "contactPoint": {
           "@type": "ContactPoint",
           "telephone": "+91-7898969930",
@@ -182,5 +195,33 @@
 
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!--
+      Google Analytics is loaded after the page is interactive instead of in
+      <head>. gtag() calls made before the script arrives are buffered by the
+      dataLayer shim below, so no events are lost.
+    -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-JLSTJZ72FL");
+
+      window.addEventListener("load", function () {
+        var load = function () {
+          var s = document.createElement("script");
+          s.async = true;
+          s.src = "https://www.googletagmanager.com/gtag/js?id=G-JLSTJZ72FL";
+          document.head.appendChild(s);
+        };
+        if ("requestIdleCallback" in window) {
+          requestIdleCallback(load, { timeout: 4000 });
+        } else {
+          setTimeout(load, 2000);
+        }
+      });
+    </script>
   </body>
 </html>

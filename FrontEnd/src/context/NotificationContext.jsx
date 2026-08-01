@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { api } from "../utils/api";
 import { useAuth } from "./AuthContext";
+import usePolling from "../hooks/usePolling";
 
 export const NotificationContext = createContext(null);
 
@@ -109,20 +110,18 @@ export const NotificationProvider = ({ children }) => {
       lastSeenIdRef.current = null;
       shownToastIdsRef.current = new Set();
       fetchNotifications();
-
-      const notifInterval = setInterval(fetchNotifications, 20000);
-
-      return () => {
-        clearInterval(notifInterval);
-      };
-    } else {
-      setNotifications([]);
-      setUnreadCount(0);
-      setToasts([]);
-      initialLoadDoneRef.current = false;
-      shownToastIdsRef.current = new Set();
+      return;
     }
+
+    setNotifications([]);
+    setUnreadCount(0);
+    setToasts([]);
+    initialLoadDoneRef.current = false;
+    shownToastIdsRef.current = new Set();
   }, [user, fetchNotifications]);
+
+  // Paused while the tab is hidden, so a backgrounded tab stops polling.
+  usePolling(fetchNotifications, 20000, Boolean(user));
 
   useEffect(() => {
     if (user) {

@@ -40,7 +40,7 @@ const MyReturns = () => {
     try {
       const response = await returnsAPI.getMyReturns();
       setReturns(response.data);
-    } catch (error) {
+    } catch {
       showToast("Error fetching returns", "error");
     } finally {
       setLoading(false);
@@ -201,6 +201,8 @@ const MyReturns = () => {
                               src={item.image}
                               alt={item.name}
                               className="h-[70px] w-[70px] shrink-0 rounded-[8px] border border-[#e5e7eb] object-cover max-[480px]:h-[50px] max-[480px]:w-[50px]"
+                              loading="lazy"
+                              decoding="async"
                             />
                             <div className="min-w-0 flex-1">
                               <p className="mb-1 truncate text-[0.95rem] font-semibold text-[#1f2937] max-[480px]:text-[0.9rem]">

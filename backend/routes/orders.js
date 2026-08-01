@@ -12,6 +12,9 @@ const multer = require("multer");
 const cloudinary = require("../config/cloudinary");
 const { notifyAllAdmins } = require("../utils/adminNotifier");
 const { sendPushToUser } = require("../utils/pushService");
+const Reseller = require("../models/Reseller");
+const ResellerProduct = require("../models/ResellerProduct");
+const resellerService = require("../services/resellerService");
 const {
   sendOrderPlacedEmail,
   sendOrderStatusEmail,
@@ -189,6 +192,7 @@ router.post("/", auth, async (req, res) => {
       paymentMethod,
       razorpayPaymentId,
       razorpayOrderId,
+      resellerCode, // optional: set when the buyer arrived via a shared link
     } = req.body;
 
     const cart = await Cart.findOne({ user: req.user._id })
@@ -212,18 +216,63 @@ router.post("/", auth, async (req, res) => {
       }
     }
 
-    const orderItems = cart.items.map((item) => ({
-      product: item.product._id,
-      name: item.product.name,
-      price: item.product.price,
-      quantity: item.quantity,
-      size: item.size,
-      color: item.color,
-      image: item.product.images[0],
-    }));
+    /**
+     * Reseller attribution.
+     *
+     * When the buyer arrived through a reseller link, each item is priced at
+     * that reseller's selling price and the catalogue price is preserved as
+     * `basePrice` so the commission can be derived later. Orders without a
+     * (valid, approved) code behave exactly as before.
+     */
+    let reseller = null;
+    let resellerListings = new Map();
 
-    const subtotal = cart.items.reduce(
-      (sum, item) => sum + item.product.price * item.quantity,
+    if (resellerCode) {
+      reseller = await Reseller.findOne({
+        resellerCode: String(resellerCode).toUpperCase().trim(),
+        status: "approved",
+      });
+
+      if (reseller) {
+        const listings = await ResellerProduct.find({
+          reseller: reseller._id,
+          product: { $in: cart.items.map((i) => i.product._id) },
+          isActive: true,
+        }).lean();
+        resellerListings = new Map(
+          listings.map((l) => [l.product.toString(), l]),
+        );
+      }
+    }
+
+    const orderItems = cart.items.map((item) => {
+      const listing = resellerListings.get(item.product._id.toString());
+      const basePrice = item.product.price;
+      const price = listing ? listing.sellingPrice : basePrice;
+
+      return {
+        product: item.product._id,
+        name: item.product.name,
+        price,
+        quantity: item.quantity,
+        size: item.size,
+        color: item.color,
+        image: item.product.images[0],
+        ...(listing
+          ? { resellerProduct: listing._id, basePrice }
+          : {}),
+      };
+    });
+
+    const subtotal = orderItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
+
+    const resellerMargin = orderItems.reduce(
+      (sum, item) =>
+        sum +
+        (item.basePrice ? (item.price - item.basePrice) * item.quantity : 0),
       0,
     );
 
@@ -270,6 +319,13 @@ router.post("/", auth, async (req, res) => {
       couponApplied: cart.appliedCoupon?._id,
       expectedDelivery,
       paymentStatus,
+      ...(reseller
+        ? {
+            reseller: reseller._id,
+            resellerCode: reseller.resellerCode,
+            resellerMargin: Math.round(resellerMargin * 100) / 100,
+          }
+        : {}),
       deliveryUpdates: [
         {
           status: "Order Placed",
@@ -311,6 +367,16 @@ router.post("/", auth, async (req, res) => {
 
     safeSendEmail(sendOrderPlacedEmail, order, userDoc);
     safeSendEmail(sendAdminNewOrderAlert, order, userDoc);
+
+    // Records the commission + credits the reseller's pending balance.
+    // Non-blocking: a reseller-ledger hiccup must never fail a customer order.
+    if (reseller) {
+      resellerService
+        .recordOrderCommission(order)
+        .catch((err) =>
+          console.error("Reseller commission error (non-critical):", err.message),
+        );
+    }
 
     res.status(201).json(order);
   } catch (error) {
@@ -400,6 +466,15 @@ router.put("/:id/cancel", auth, async (req, res) => {
     }
 
     await order.save();
+
+    // Reverse any reseller commission accrued for this order.
+    if (order.reseller) {
+      resellerService
+        .reverseCommissionForOrder(order, "Order cancelled by customer")
+        .catch((err) =>
+          console.error("Commission reversal error (non-critical):", err.message),
+        );
+    }
 
     let notificationMessage = `Your order #${order.orderId} has been cancelled successfully.`;
     if (wasPaid) {
@@ -718,6 +793,32 @@ router.put("/:id/status", auth, admin, async (req, res) => {
           }),
         ),
       );
+
+      // Approves the reseller commission and releases it once the return
+      // window has closed. Non-blocking: never fails the status update.
+      if (order.reseller) {
+        resellerService
+          .settleCommissionForOrder(order)
+          .catch((err) =>
+            console.error("Commission settle error (non-critical):", err.message),
+          );
+      }
+    }
+
+    // Cancellation / return claws the commission back out of the wallet.
+    if (
+      ["Cancelled", "Returned"].includes(orderStatus) &&
+      previousStatus !== orderStatus &&
+      order.reseller
+    ) {
+      resellerService
+        .reverseCommissionForOrder(
+          order,
+          orderStatus === "Returned" ? "Order returned" : "Order cancelled",
+        )
+        .catch((err) =>
+          console.error("Commission reversal error (non-critical):", err.message),
+        );
     }
 
     if (orderStatus === "Cancelled" && previousStatus !== "Cancelled") {

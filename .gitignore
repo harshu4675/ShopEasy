@@ -50,3 +50,6 @@ vite.svg
 package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+# Lighthouse reports (generated locally)
+lighthouse-report.*
+FrontEnd/lighthouse-report.*
