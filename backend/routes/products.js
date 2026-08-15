@@ -178,16 +178,36 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
       colors,
       stock,
       tags,
+      affiliateUrl,
+      sourceUrl,
+      canonicalUrl,
+      platform,
+      importMetadata,
+      imageUrls: requestedImageUrls,
     } = req.body;
 
     // Upload images to Cloudinary
-    let imageUrls = [];
+    let productImages = [];
     if (req.files && req.files.length > 0) {
       const uploadPromises = req.files.map((file) =>
         uploadToCloudinary(file.buffer),
       );
-      imageUrls = await Promise.all(uploadPromises);
+      productImages = await Promise.all(uploadPromises);
     }
+
+    let importedImageUrls = [];
+    if (requestedImageUrls) {
+      try {
+        importedImageUrls = JSON.parse(requestedImageUrls).filter((url) => /^https?:\/\//i.test(url)).slice(0, 5);
+      } catch {
+        return res.status(400).json({ message: "Invalid imported image URLs" });
+      }
+    }
+    if (!importedImageUrls.length && (!req.files || req.files.length === 0)) {
+      return res.status(400).json({ message: "At least one product image is required" });
+    }
+
+    if (!productImages.length) productImages = importedImageUrls;
 
     const product = await Product.create({
       name,
@@ -201,8 +221,13 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
       stock,
-      images: imageUrls,
+      images: productImages,
       tags: tags ? JSON.parse(tags) : [],
+      affiliateUrl,
+      sourceUrl,
+      canonicalUrl,
+      platform,
+      importMetadata: importMetadata ? JSON.parse(importMetadata) : undefined,
     });
 
     res.status(201).json(product);
