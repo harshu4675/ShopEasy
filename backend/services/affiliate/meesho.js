@@ -1,21 +1,16 @@
 const { supportsFor, importPublic } = require("./providerUtils");
 
 /**
- * Flipkart provider.
- *
- * Uses only publicly visible page metadata (JSON-LD / OpenGraph / meta tags).
- * No Flipkart API credentials are required — if the optional affiliate API is
- * ever configured, it can be added here without touching other providers.
+ * Meesho provider — public page metadata only. No API credentials required.
  */
-
-const ID = "flipkart";
-const LABEL = "Flipkart";
-const DOMAINS = ["flipkart.com"];
+const ID = "meesho";
+const LABEL = "Meesho";
+const DOMAINS = ["meesho.com"];
 
 function extractProductId(url) {
   try {
     const parsed = new URL(url);
-    const pid = parsed.searchParams.get("pid");
+    const pid = parsed.searchParams.get("product_id");
     if (pid) return pid;
     const match = parsed.pathname.match(/\/p\/([a-z0-9]+)/i);
     if (match) return match[1].toUpperCase();

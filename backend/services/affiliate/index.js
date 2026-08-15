@@ -1,44 +1,42 @@
 /**
  * Affiliate provider registry.
  *
- * Adding a platform is a matter of dropping a new provider module into this
- * folder and registering it here — nothing else in the codebase needs to know
- * about individual platforms.
+ * Adding a marketplace is a matter of dropping a new provider module into this
+ * folder and registering it here. The GenericWebProvider always stands behind
+ * every platform provider as the credential-free fallback.
  */
+const generic = require("./generic");
 const amazon = require("./amazon");
 const flipkart = require("./flipkart");
+const myntra = require("./myntra");
+const ajio = require("./ajio");
+const meesho = require("./meesho");
 
-const PROVIDERS = [amazon, flipkart];
+const PROVIDERS = [amazon, flipkart, myntra, ajio, meesho];
 
 /**
- * Finds the provider that claims a URL, or null when the platform is unknown.
- * @param {string} url
+ * Finds the provider that claims a URL, or null when the platform is unknown
+ * (in which case the generic provider still attempts public metadata).
  */
 function detectProvider(url) {
   if (!url) return null;
   return PROVIDERS.find((p) => p.supports(url)) || null;
 }
 
-/** @param {string} name - provider id, e.g. "amazon" */
-function getProvider(name) {
-  return PROVIDERS.find((p) => p.id === name) || null;
-}
-
 /**
- * All hostnames (and their subdomains) that a redirect may legally point at.
- * Used by the public redirect resolver to prevent open-redirect attacks.
+ * Open-redirect safety for affiliate destinations.
+ *
+ * The redirect route resolves a destination by product id from the database —
+ * it never accepts a URL from the request — so the destination is always a URL
+ * an admin explicitly stored. The remaining guard is the scheme: only http(s)
+ * links may be stored and followed, so a `javascript:`/`data:` payload can
+ * never become a redirect target.
  */
-function supportedHostSuffixes() {
-  return PROVIDERS.flatMap((p) => p.domains);
-}
-
-/** A redirect destination is safe only if its host is a supported marketplace. */
-function isAllowedDestination(url) {
+function isSafeRedirectUrl(url) {
+  if (typeof url !== "string") return false;
   try {
-    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
-    return supportedHostSuffixes().some(
-      (d) => host === d || host.endsWith(`.${d}`),
-    );
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
   } catch {
     return false;
   }
@@ -46,8 +44,7 @@ function isAllowedDestination(url) {
 
 module.exports = {
   PROVIDERS,
+  generic,
   detectProvider,
-  getProvider,
-  supportedHostSuffixes,
-  isAllowedDestination,
+  isSafeRedirectUrl,
 };

@@ -258,7 +258,12 @@ const AffiliateProducts = () => {
                         <p className="m-0 text-[13px] text-gray-500">{p.brand}</p>
                         {p.importStatus === "error" && (
                           <p className="m-0 mt-1 truncate text-[12px] font-semibold text-red-600">
-                            Import error: {p.importError}
+                            {p.importError || "Import failed — review and complete manually."}
+                          </p>
+                        )}
+                        {p.importStatus === "partial" && (
+                          <p className="m-0 mt-1 truncate text-[12px] font-semibold text-amber-600">
+                            Some fields need review
                           </p>
                         )}
                       </td>
@@ -379,7 +384,12 @@ const AffiliateProducts = () => {
                   </div>
                   {p.importStatus === "error" && (
                     <p className="m-0 mb-2 rounded-md bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600">
-                      Import error: {p.importError}
+                      {p.importError || "Import failed — review and complete manually."}
+                    </p>
+                  )}
+                  {p.importStatus === "partial" && (
+                    <p className="m-0 mb-2 rounded-md bg-amber-50 px-3 py-2 text-[12px] font-semibold text-amber-600">
+                      Some fields need review
                     </p>
                   )}
                   <div className="flex flex-wrap gap-2.5">

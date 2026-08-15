@@ -165,7 +165,7 @@ const productSchema = new mongoose.Schema({
   },
   importStatus: {
     type: String,
-    enum: ["imported", "updated", "error"],
+    enum: ["imported", "updated", "partial", "error"],
     default: "imported",
   },
   importError: {

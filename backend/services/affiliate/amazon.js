@@ -1,16 +1,18 @@
 const crypto = require("crypto");
 const { ImportError, CODES } = require("./errors");
+const { supportsFor, importPublic } = require("./providerUtils");
 
 /**
- * Amazon provider backed by the official Product Advertising API (PA-API 5.0).
+ * Amazon provider.
  *
- * This deliberately does NOT scrape amazon.com: scraping bypasses bot
- * protection and violates Amazon's terms. With the API credentials configured
- * (see .env.example) the provider signs a standard AWS Signature v4 request,
- * retrieves the product via GetItems and returns a normalised result.
+ * Primary path (works with NO credentials): fetch the public product page and
+ * extract the structured metadata (JSON-LD / OpenGraph / meta tags) that
+ * Amazon serves to ordinary visitors.
  *
- * Without credentials it fails fast with a MISSING_CREDENTIALS error so the
- * admin sees exactly what is required to enable Amazon imports.
+ * Optional path: if the Product Advertising API credentials are configured in
+ * the environment, the provider uses the official PA-API 5.0 instead for
+ * richer, reliable data. Credentials are OPTIONAL — their absence never blocks
+ * an import, and any API failure falls back to public metadata.
  */
 
 const ID = "amazon";
@@ -39,7 +41,6 @@ const DOMAINS = [
   "amazon.com.au",
 ];
 
-// Marketplace → AWS region for PA-API signing.
 const REGIONS = {
   "amazon.in": "eu-west-1",
   "amazon.com": "us-east-1",
@@ -71,25 +72,7 @@ const ASIN_PATTERNS = [
   /[?&]asin=([A-Z0-9]{10})/i,
 ];
 
-function parseHost(hostname) {
-  return hostname ? String(hostname).toLowerCase().replace(/^www\./, "") : "";
-}
-
-function marketplaceForHost(hostname) {
-  const host = parseHost(hostname);
-  if (DOMAINS.includes(host)) return host;
-  // Subdomains other than www (rare) still resolve to the marketplace.
-  const match = DOMAINS.find((d) => host.endsWith(`.${d}`));
-  return match || null;
-}
-
-function supports(url) {
-  try {
-    return Boolean(marketplaceForHost(new URL(url).hostname));
-  } catch {
-    return false;
-  }
-}
+const supports = supportsFor(DOMAINS);
 
 function extractProductId(url) {
   try {
@@ -98,23 +81,19 @@ function extractProductId(url) {
       const match = parsed.pathname.match(re) || parsed.search.match(re);
       if (match) return match[1].toUpperCase();
     }
-    return null;
+    return "";
   } catch {
-    return null;
+    return "";
   }
 }
 
 function credentials() {
-  const accessKey = process.env.AMAZON_API_KEY;
-  const secretKey = process.env.AMAZON_API_SECRET;
-  const partnerTag =
-    process.env.AMAZON_PARTNER_TAG || process.env.AMAZON_ASSOCIATE_TAG;
-  return { accessKey, secretKey, partnerTag };
-}
-
-function hasCredentials() {
-  const { accessKey, secretKey, partnerTag } = credentials();
-  return Boolean(accessKey && secretKey && partnerTag);
+  return {
+    accessKey: process.env.AMAZON_API_KEY || process.env.AMAZON_PA_API_KEY,
+    secretKey: process.env.AMAZON_API_SECRET || process.env.AMAZON_PA_API_SECRET,
+    partnerTag:
+      process.env.AMAZON_PARTNER_TAG || process.env.AMAZON_ASSOCIATE_TAG,
+  };
 }
 
 /* ------------------------------- Sig V4 -------------------------------- */
@@ -173,14 +152,17 @@ function signRequest({ method, host, path, payload, region, accessKey, secretKey
     `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, ` +
     `SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  return { body, headers: {
-    "content-encoding": "amz-1.0",
-    "content-type": contentType,
-    "host": host,
-    "x-amz-date": amzDate,
-    "x-amz-target": target,
-    authorization,
-  } };
+  return {
+    body,
+    headers: {
+      "content-encoding": "amz-1.0",
+      "content-type": contentType,
+      host,
+      "x-amz-date": amzDate,
+      "x-amz-target": target,
+      authorization,
+    },
+  };
 }
 
 /* ------------------------------ PA-API call ----------------------------- */
@@ -229,60 +211,37 @@ async function callGetItems(asin, marketplace, region, creds) {
       headers: signed.headers,
       body: signed.body,
     });
-  } catch (err) {
+  } catch {
     throw new ImportError(
       CODES.SOURCE_ERROR,
-      "Amazon's product API could not be reached. Please try again shortly.",
+      "Amazon's product API could not be reached.",
       502,
     );
   }
 
   if (response.status === 429) {
-    throw new ImportError(
-      CODES.RATE_LIMITED,
-      "Amazon's product API rate limit has been reached. Please try again in a minute.",
-      429,
-    );
+    throw new ImportError(CODES.RATE_LIMITED, "Amazon rate limit reached.", 429);
   }
   if (response.status === 401) {
-    throw new ImportError(
-      CODES.MISSING_CREDENTIALS,
-      "Amazon rejected the API credentials. Check AMAZON_API_KEY and AMAZON_API_SECRET.",
-      401,
-    );
+    throw new ImportError(CODES.BLOCKED, "Amazon rejected the API credentials.", 401);
   }
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const apiError = (data.Errors && data.Errors[0]) || {};
-    if (apiError.Code === "InvalidParameterValue" || apiError.Code === "InvalidItemId") {
-      throw new ImportError(
-        CODES.PRODUCT_UNAVAILABLE,
-        "This product could not be found on Amazon. Check the URL and try again.",
-        404,
-      );
-    }
     throw new ImportError(
       CODES.SOURCE_ERROR,
-      apiError.Message || "Amazon's product API returned an error.",
+      (data.Errors && data.Errors[0] && data.Errors[0].Message) || "Amazon API error.",
       502,
     );
   }
 
   const item = data.ItemsResult && data.ItemsResult.Items && data.ItemsResult.Items[0];
   if (!item) {
-    throw new ImportError(
-      CODES.PRODUCT_UNAVAILABLE,
-      "This product could not be found on Amazon. Check the URL and try again.",
-      404,
-    );
+    throw new ImportError(CODES.PRODUCT_UNAVAILABLE, "Product not found on Amazon.", 404);
   }
-
   return item;
 }
-
-/* ------------------------------ Normalisation ---------------------------- */
 
 function pickPrice(listing) {
   if (!listing || !listing.Price) return null;
@@ -290,17 +249,12 @@ function pickPrice(listing) {
   return {
     price: Number(p.Amount),
     currency: p.Currency,
-    display: p.DisplayAmount,
-    original: p.SavingBasis && p.SavingBasis.Price
-      ? Number(p.SavingBasis.Price.Amount)
-      : null,
-    discountPercent: p.Savings && p.Savings.Percentage
-      ? Number(p.Savings.Percentage)
-      : null,
+    original: p.SavingBasis && p.SavingBasis.Price ? Number(p.SavingBasis.Price.Amount) : null,
+    discountPercent: p.Savings && p.Savings.Percentage ? Number(p.Savings.Percentage) : null,
   };
 }
 
-function normalise(item, marketplace, originalUrl, partnerTag) {
+function normaliseApiItem(item, marketplace, originalUrl, partnerTag) {
   const info = item.ItemInfo || {};
   const offers = item.Offers || {};
   const listings = Array.isArray(offers.Listings) ? offers.Listings : [];
@@ -308,8 +262,7 @@ function normalise(item, marketplace, originalUrl, partnerTag) {
 
   const title = (info.Title && info.Title.DisplayValue) || item.ASIN;
   const features = (info.Features && info.Features.DisplayValues) || [];
-  const description =
-    features.length > 0 ? features.join("\n") : title;
+  const description = features.length > 0 ? features.join("\n") : title;
 
   const images = [];
   const primaryImage = item.Images && item.Images.Primary && item.Images.Primary.Large;
@@ -317,21 +270,17 @@ function normalise(item, marketplace, originalUrl, partnerTag) {
   const variants = item.Images && item.Images.Variants;
   if (Array.isArray(variants)) {
     for (const v of variants) {
-      if (v && v.Large && v.Large.URL && !images.includes(v.Large.URL)) {
-        images.push(v.Large.URL);
-      }
+      if (v && v.Large && v.Large.URL && !images.includes(v.Large.URL)) images.push(v.Large.URL);
     }
   }
 
   const priceInfo = pickPrice(primaryListing);
-  const rating =
-    item.CustomerReviews && item.CustomerReviews.StarRating
-      ? Number(item.CustomerReviews.StarRating.Value)
-      : 0;
-  const reviewCount =
-    item.CustomerReviews && item.CustomerReviews.Count
-      ? Number(item.CustomerReviews.Count)
-      : 0;
+  const rating = item.CustomerReviews && item.CustomerReviews.StarRating
+    ? Number(item.CustomerReviews.StarRating.Value)
+    : 0;
+  const reviewCount = item.CustomerReviews && item.CustomerReviews.Count
+    ? Number(item.CustomerReviews.Count)
+    : 0;
 
   const availability =
     primaryListing && primaryListing.Availability && primaryListing.Availability.Message
@@ -347,23 +296,16 @@ function normalise(item, marketplace, originalUrl, partnerTag) {
     (info.Classifications && info.Classifications.ProductGroup &&
       info.Classifications.ProductGroup.DisplayValue) ||
     "";
-
   const binding =
     (info.Classifications && info.Classifications.Binding &&
       info.Classifications.Binding.DisplayValue) ||
     "";
 
   const variantsMeta = [];
-  const variationDimension =
-    item.VariationSummary && item.VariationSummary.VariationDimension;
-  if (variationDimension) {
-    variantsMeta.push({ dimension: variationDimension });
-  }
+  const variationDimension = item.VariationSummary && item.VariationSummary.VariationDimension;
+  if (variationDimension) variantsMeta.push({ name: "Variation", value: variationDimension });
 
-  const canonicalUrl =
-    item.DetailPageURL ||
-    `https://www.${marketplace}/dp/${item.ASIN}`;
-
+  const canonicalUrl = item.DetailPageURL || `https://www.${marketplace}/dp/${item.ASIN}`;
   const sep = canonicalUrl.includes("?") ? "&" : "?";
   const affiliateUrl = `${canonicalUrl}${sep}tag=${encodeURIComponent(partnerTag)}`;
 
@@ -374,7 +316,7 @@ function normalise(item, marketplace, originalUrl, partnerTag) {
     title,
     description,
     images,
-    price,
+    price: price || null,
     originalPrice: original > price ? original : price,
     discount:
       priceInfo && priceInfo.discountPercent
@@ -391,44 +333,39 @@ function normalise(item, marketplace, originalUrl, partnerTag) {
     sourcePlatform: ID,
     externalProductId: item.ASIN,
     originalUrl: canonicalUrl,
+    // NOTE: the affiliate URL derived by the API is advisory only. The exact
+    // URL the admin pasted always takes precedence as the stored destination.
     affiliateUrl,
   };
 }
 
-async function importProduct(url) {
+/* ------------------------------ import ------------------------------- */
+
+async function importProduct(url, deps = {}) {
   if (!supports(url)) {
-    throw new ImportError(CODES.UNSUPPORTED_PLATFORM, "This URL is not an Amazon product URL.");
+    throw new ImportError(CODES.INVALID_URL, "This URL is not an Amazon product URL.");
   }
 
   const asin = extractProductId(url);
-  if (!asin) {
-    throw new ImportError(
-      CODES.PRODUCT_UNAVAILABLE,
-      "Could not find a product ID (ASIN) in that Amazon URL.",
-    );
+  const creds = credentials();
+
+  // Optional official API path: used only when credentials are configured.
+  if (creds.accessKey && creds.secretKey && creds.partnerTag && asin) {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+      const region = REGIONS[hostname] || "us-east-1";
+      const item = await callGetItems(asin, hostname, region, creds);
+      return normaliseApiItem(item, hostname, url, creds.partnerTag);
+    } catch (err) {
+      if (err instanceof ImportError && err.code === "BLOCKED") throw err;
+      // Any other API problem → fall through to public metadata extraction.
+    }
   }
 
-  const { accessKey, secretKey, partnerTag } = credentials();
-  if (!accessKey || !secretKey || !partnerTag) {
-    throw new ImportError(
-      CODES.MISSING_CREDENTIALS,
-      "Amazon imports require the Product Advertising API. Set AMAZON_API_KEY, " +
-        "AMAZON_API_SECRET and AMAZON_PARTNER_TAG (or AMAZON_ASSOCIATE_TAG) in the " +
-        "backend environment to enable them.",
-      501,
-    );
-  }
-
-  const marketplace = marketplaceForHost(new URL(url).hostname);
-  const region = REGIONS[marketplace] || "us-east-1";
-
-  const item = await callGetItems(asin, marketplace, region, {
-    accessKey,
-    secretKey,
-    partnerTag,
-  });
-
-  return normalise(item, marketplace, url, partnerTag);
+  // Public metadata path — works with no credentials at all.
+  const result = await importPublic(url, deps, { id: ID, extractProductId });
+  if (asin && !result.externalProductId) result.externalProductId = asin;
+  return result;
 }
 
 module.exports = {
@@ -437,6 +374,5 @@ module.exports = {
   domains: DOMAINS,
   supports,
   extractProductId,
-  hasCredentials,
   importProduct,
 };

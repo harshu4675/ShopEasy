@@ -39,40 +39,82 @@ const recomputeDiscount = (price, originalPrice) => {
 
 /**
  * POST /api/admin/affiliate/import
- * Paste a product URL → fetch its data → create a draft product (or refresh
- * an existing one) for review.
+ * Paste a product URL → extract publicly available metadata → create a draft
+ * product (or refresh an existing one) for review.
+ *
+ * No marketplace API credentials are required. A page-access failure or
+ * missing fields never prevents draft creation: the admin completes whatever
+ * the page did not expose.
  */
 router.post("/import", auth, admin, async (req, res) => {
   try {
     const { url } = req.body;
-    const result = await affiliateService.importFromUrl(url);
-    const fields = affiliateService.toProductFields(result);
+    const outcome = await affiliateService.importFromUrl(url);
+    const fields = affiliateService.toProductFields(outcome.product);
 
-    const existing = await Product.findOne({
-      sourcePlatform: fields.sourcePlatform,
-      externalProductId: fields.externalProductId,
-    });
+    const importStatus = outcome.fetchFailed
+      ? "error"
+      : outcome.missing.length > 0
+        ? "partial"
+        : "imported";
+    const importError = outcome.fetchFailed
+      ? outcome.errorMessage
+      : outcome.missing.length > 0
+        ? "Some product information could not be automatically detected. Please review and complete the missing fields."
+        : "";
+
+    // Re-importing the same URL (or product id) updates the existing draft
+    // instead of piling up duplicates. Only drafts are matched, so a published
+    // product is never silently overwritten by a fresh import.
+    let existing = null;
+    if (fields.externalProductId && fields.sourcePlatform !== "unknown") {
+      existing = await Product.findOne({
+        productType: "AFFILIATE",
+        status: "draft",
+        sourcePlatform: fields.sourcePlatform,
+        externalProductId: fields.externalProductId,
+      });
+    }
+    if (!existing && fields.affiliateUrl) {
+      existing = await Product.findOne({
+        productType: "AFFILIATE",
+        status: "draft",
+        affiliateUrl: fields.affiliateUrl,
+      });
+    }
 
     if (existing) {
       Object.assign(existing, fields, {
-        importStatus: "updated",
-        importError: "",
+        importStatus,
+        importError,
         importedAt: new Date(),
       });
       await existing.save();
-      return res.json({ success: true, created: false, product: existing });
+      return res.json({
+        success: true,
+        created: false,
+        product: existing,
+        missing: outcome.missing,
+        warnings: outcome.warnings,
+      });
     }
 
     const product = await Product.create({
       ...fields,
       productType: "AFFILIATE",
       status: "draft",
-      importStatus: "imported",
-      importError: "",
+      importStatus,
+      importError,
       importedAt: new Date(),
     });
 
-    res.status(201).json({ success: true, created: true, product });
+    res.status(201).json({
+      success: true,
+      created: true,
+      product,
+      missing: outcome.missing,
+      warnings: outcome.warnings,
+    });
   } catch (err) {
     sendImportError(res, err);
   }
@@ -163,8 +205,13 @@ router.put("/:id", auth, admin, async (req, res) => {
     ];
     editable.forEach((field) => {
       if (req.body[field] !== undefined) {
-        if (field === "price" || field === "originalPrice") {
+        if (field === "price") {
           product[field] = Number(req.body[field]) || 0;
+        } else if (field === "originalPrice") {
+          // An MRP is optional: fall back to the selling price so the price
+          // block stays consistent instead of showing a ₹0 strike-through.
+          product[field] =
+            Number(req.body[field]) || product.price || 0;
         } else {
           product[field] = req.body[field];
         }
@@ -180,10 +227,10 @@ router.put("/:id", auth, admin, async (req, res) => {
 
     if (req.body.affiliateUrl !== undefined) {
       const url = String(req.body.affiliateUrl).trim();
-      if (url && !affiliateService.isAllowedDestination(url)) {
+      if (url && !affiliateService.isSafeRedirectUrl(url)) {
         return res.status(400).json({
           success: false,
-          message: "The affiliate URL must point to a supported platform.",
+          message: "The affiliate URL must be a valid http(s) link.",
         });
       }
       product.affiliateUrl = url;
@@ -214,6 +261,12 @@ router.patch("/:id/publish", auth, admin, async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Add a title and at least one image before publishing.",
+      });
+    }
+    if (!product.price || product.price <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Add a selling price before publishing.",
       });
     }
     if (!product.affiliateUrl) {
@@ -271,15 +324,28 @@ router.post("/:id/reimport", auth, admin, async (req, res) => {
     }
 
     try {
-      const result = await affiliateService.importFromUrl(sourceUrl);
-      const fields = affiliateService.toProductFields(result);
+      const outcome = await affiliateService.importFromUrl(sourceUrl);
+      const fields = affiliateService.toProductFields(outcome.product);
       Object.assign(product, fields, {
-        importStatus: "updated",
-        importError: "",
+        importStatus: outcome.fetchFailed
+          ? "error"
+          : outcome.missing.length > 0
+            ? "partial"
+            : "updated",
+        importError: outcome.fetchFailed
+          ? outcome.errorMessage
+          : outcome.missing.length > 0
+            ? "Some product information could not be automatically detected. Please review and complete the missing fields."
+            : "",
         importedAt: new Date(),
       });
       await product.save();
-      res.json({ success: true, product });
+      res.json({
+        success: true,
+        product,
+        missing: outcome.missing,
+        warnings: outcome.warnings,
+      });
     } catch (err) {
       // Persist the failure so the list can surface "import error" state.
       product.importStatus = "error";

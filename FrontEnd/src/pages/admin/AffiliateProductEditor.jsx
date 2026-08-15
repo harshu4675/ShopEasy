@@ -49,6 +49,12 @@ const AffiliateProductEditor = () => {
   const [newImageUrl, setNewImageUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [lastUrl, setLastUrl] = useState("");
+  const [importNotices, setImportNotices] = useState({
+    missing: [],
+    warnings: [],
+    error: "",
+  });
 
   const loadExisting = useCallback(async () => {
     try {
@@ -82,20 +88,31 @@ const AffiliateProductEditor = () => {
   }, [isEdit, loadExisting]);
 
   const handleImport = async (e) => {
-    e.preventDefault();
-    if (!url.trim() || importing) return;
+    if (e && e.preventDefault) e.preventDefault();
+    const targetUrl = (typeof e === "string" ? e : url).trim();
+    if (!targetUrl || importing) return;
+    setLastUrl(targetUrl);
     setImporting(true);
     setImportError(null);
     try {
-      const { data } = await api.post("/admin/affiliate/import", { url: url.trim() });
+      const { data } = await api.post("/admin/affiliate/import", { url: targetUrl });
       const imported = data.product;
+      const missing = data.missing || [];
+      const warnings = data.warnings || [];
       setProduct(imported);
+      setImportNotices({
+        missing,
+        warnings,
+        error: imported.importError || "",
+      });
       setForm({
         name: imported.name || "",
         description: imported.description || "",
         category: imported.category || "Accessories",
-        price: imported.price ?? 0,
-        originalPrice: imported.originalPrice ?? 0,
+        price: missing.includes("price") ? "" : imported.price ?? 0,
+        originalPrice: missing.includes("price")
+          ? ""
+          : imported.originalPrice ?? imported.price ?? 0,
         brand: imported.brand || "",
         tags: (imported.tags || []).join(", "),
         images: imported.images || [],
@@ -237,11 +254,6 @@ const AffiliateProductEditor = () => {
                   </span>
                   <span>{importError.message}</span>
                 </p>
-                {importError.code === "MISSING_CREDENTIALS" && (
-                  <p className="m-0 mt-1 pl-7 text-[12px] text-red-500">
-                    See backend/.env.example for the required keys.
-                  </p>
-                )}
               </div>
             )}
 
@@ -260,7 +272,7 @@ const AffiliateProductEditor = () => {
                     className="inline-block h-5 w-5 rounded-full border-2 border-white/30 border-t-white"
                     style={{ animation: "aff-spin 0.7s linear infinite" }}
                   />
-                  Fetching product information...
+                  Attempting public product metadata extraction...
                 </>
               ) : (
                 <>
@@ -273,12 +285,14 @@ const AffiliateProductEditor = () => {
             </button>
 
             <div className="mt-5 rounded-lg bg-gray-50 px-4 py-3 text-[12px] text-gray-500">
-              Supported platforms:{" "}
+              Works with{" "}
               <span className="font-semibold text-gray-700">
-                Amazon, Flipkart
+                Amazon, Flipkart, Myntra, Ajio, Meesho
               </span>{" "}
-              and more coming soon. Imports use each platform's official API or
-              affiliate feed — we never scrape or invent product data.
+              and any other product page. No marketplace API keys required —
+              we read the publicly visible page metadata (JSON-LD, OpenGraph
+              and meta tags), never fabricate data and never bypass platform
+              protections.
             </div>
           </form>
         </div>
@@ -308,6 +322,16 @@ const AffiliateProductEditor = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {lastUrl && (
+              <button
+                onClick={() => handleImport(lastUrl)}
+                disabled={importing || saving || publishing}
+                title={lastUrl}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-indigo-200 bg-indigo-50 px-5 py-3 text-[14px] font-bold text-indigo-700 transition-all hover:bg-indigo-100 disabled:opacity-60"
+              >
+                {importing ? "Importing..." : "Import Again"}
+              </button>
+            )}
             {product?.status !== "published" && (
               <button
                 onClick={() => save(true)}
@@ -347,6 +371,66 @@ const AffiliateProductEditor = () => {
           </div>
         </div>
 
+        {(importNotices.error ||
+          importNotices.missing.length > 0 ||
+          importNotices.warnings.length > 0) && (
+          <div className="mb-6 space-y-2">
+            {importNotices.error && (
+              <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3">
+                <p className="m-0 flex items-start gap-2 text-[13px] font-semibold text-red-700">
+                  <span style={matIcon} className="mt-0.5 text-[18px]">
+                    error
+                  </span>
+                  <span>
+                    {importNotices.error} You can enter the product information
+                    manually below.
+                  </span>
+                </p>
+              </div>
+            )}
+            {importNotices.missing.length > 0 && (
+              <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
+                <p className="m-0 flex items-start gap-2 text-[13px] font-semibold text-amber-700">
+                  <span style={matIcon} className="mt-0.5 text-[18px]">
+                    edit_note
+                  </span>
+                  <span>
+                    Not detected:{" "}
+                    {importNotices.missing
+                      .map(
+                        (f) =>
+                          ({
+                            title: "title",
+                            image: "image",
+                            price: "price",
+                            description: "description",
+                            brand: "brand",
+                            category: "category",
+                            rating: "rating",
+                          })[f] || f,
+                      )
+                      .join(", ")}
+                    . Please complete these fields manually.
+                  </span>
+                </p>
+              </div>
+            )}
+            {importNotices.warnings.map((w, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3"
+              >
+                <p className="m-0 flex items-start gap-2 text-[13px] font-semibold text-indigo-700">
+                  <span style={matIcon} className="mt-0.5 text-[18px]">
+                    info
+                  </span>
+                  <span>{w}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
           {/* Preview card */}
           <div className="h-fit rounded-2xl border border-gray-100 bg-white p-4 shadow-md lg:sticky lg:top-4">
@@ -378,7 +462,9 @@ const AffiliateProductEditor = () => {
             )}
             <div className="mb-3 flex items-baseline gap-2">
               <span className="text-xl font-extrabold text-gray-900">
-                {formatPrice(form.price)}
+                {form.price !== "" && form.price != null
+                  ? formatPrice(form.price)
+                  : "Price not detected"}
               </span>
               {form.originalPrice > form.price && (
                 <span className="text-sm text-gray-400 line-through">
@@ -456,6 +542,11 @@ const AffiliateProductEditor = () => {
                     min="0"
                     value={form.price}
                     onChange={(e) => update("price", e.target.value)}
+                    placeholder={
+                      importNotices.missing.includes("price")
+                        ? "Enter price manually"
+                        : ""
+                    }
                     className={inputCls}
                   />
                 </Field>
@@ -557,8 +648,8 @@ const AffiliateProductEditor = () => {
                   className={inputCls}
                 />
                 <p className="mt-1.5 text-[12px] text-gray-400">
-                  Must point to a supported platform (e.g. amazon.in, amazon.com,
-                  flipkart.com).
+                  This is the exact URL you pasted — affiliate tracking
+                  parameters are preserved. Customers are sent here on Buy Now.
                 </p>
               </Field>
 
