@@ -99,6 +99,11 @@ const productSchema = new mongoose.Schema({
     default: 0,
   },
   tags: [String],
+  affiliateUrl: { type: String, trim: true },
+  sourceUrl: { type: String, trim: true },
+  canonicalUrl: { type: String, trim: true },
+  platform: { type: String, trim: true },
+  importMetadata: { type: mongoose.Schema.Types.Mixed },
 
   salesCount: {
     type: Number,

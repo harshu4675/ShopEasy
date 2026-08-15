@@ -159,6 +159,7 @@ app.use("/", sitemapRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/auth", require("./routes/auth"));
 
+app.use("/api/products/import", require("./routes/productImporter"));
 app.use("/api/products", require("./routes/products"));
 app.use("/api/push", require("./routes/push"));
 app.use("/api/reviews", require("./routes/reviews"));

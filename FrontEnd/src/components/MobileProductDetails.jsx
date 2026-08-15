@@ -220,6 +220,10 @@ const MobileProductDetails = () => {
   };
 
   const buyNow = async () => {
+    if (product?.affiliateUrl) {
+      window.location.assign(product.affiliateUrl);
+      return;
+    }
     if (!user) {
       showToast("Please login to buy", "error");
       navigate("/login");

@@ -31,6 +31,10 @@ const AddProduct = () => {
     tags: "",
   });
   const [images, setImages] = useState([]);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [importedImageUrls, setImportedImageUrls] = useState([]);
   const [colorInput, setColorInput] = useState({ name: "", code: "#000000" });
 
   useEffect(() => {
@@ -129,6 +133,23 @@ const AddProduct = () => {
     }));
   };
 
+  const importAffiliateProduct = async () => {
+    if (!importUrl.trim()) return showToast("Paste a product or affiliate URL first", "error");
+    setImporting(true);
+    try {
+      const { data } = await api.post("/products/import/preview", { url: importUrl.trim() });
+      const product = data.product;
+      const category = categories.find((item) => item.name === product.category)?.name || "";
+      setFormData((current) => ({ ...current, name: product.title || current.name, description: product.description || current.description, price: product.price ?? current.price, originalPrice: product.originalPrice ?? current.originalPrice, brand: product.brand || current.brand, category: category || current.category, subCategory: product.subcategory || current.subCategory, sizes: product.sizes?.filter((size) => sizes.includes(size)) || current.sizes, colors: product.colors?.map((name) => ({ name, code: "#000000" })) || current.colors, stock: product.availability?.toLowerCase().includes("out") ? 0 : current.stock || 1, affiliateUrl: product.affiliateUrl, sourceUrl: product.sourceUrl, canonicalUrl: product.canonicalUrl, platform: product.platform, importMetadata: product.rawMetadata }));
+      setImportedImageUrls(product.images || []);
+      setImportResult(data);
+      showToast(data.reason === "PARTIAL_DATA" ? "Imported what was publicly available — review missing fields" : "Product imported for review", "success");
+    } catch (error) {
+      setImportResult(error.response?.data || { message: "Automatic extraction was not available." });
+      showToast(error.response?.data?.message || "Could not import this product", "error");
+    } finally { setImporting(false); }
+  };
+
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 5) {
@@ -140,8 +161,8 @@ const AddProduct = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (images.length === 0) {
-      showToast("Please select at least one image", "error");
+    if (images.length === 0 && importedImageUrls.length === 0) {
+      showToast("Please select or import at least one image", "error");
       return;
     }
     setLoading(true);
@@ -163,6 +184,7 @@ const AddProduct = () => {
         data.append(key, formData[key]);
       }
     });
+    if (importedImageUrls.length && images.length === 0) data.append("imageUrls", JSON.stringify(importedImageUrls));
     images.forEach((image) => data.append("images", image));
     try {
       await api.post("/products", data, {
@@ -239,6 +261,18 @@ const AddProduct = () => {
             onSubmit={handleSubmit}
             className="rounded-2xl bg-white p-8 shadow-sm max-md:p-5"
           >
+            <div className="mb-8 rounded-xl border border-pink-100 bg-pink-50 p-5">
+              <h3 className="m-0 text-lg font-bold text-gray-900">Import affiliate product</h3>
+              <p className="mb-3 mt-1 text-sm text-gray-600">Paste an Amazon, Flipkart, Myntra, Ajio, Meesho, or public product URL. Your original affiliate link is preserved for Buy Now.</p>
+              <div className="flex gap-2 max-md:flex-col">
+                <input value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="https://..." className={inputClass} aria-label="Affiliate product URL" />
+                <button type="button" onClick={importAffiliateProduct} disabled={importing} className="rounded-lg border-none bg-pink-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{importing ? "Importing..." : "Import"}</button>
+              </div>
+              {importResult && <div className="mt-4 rounded-lg bg-white p-4 text-sm shadow-sm">
+                <div className="font-bold text-gray-900">{importResult.success ? "Product imported" : "Needs manual review"}</div>
+                {importResult.success ? <><div className="mt-2 text-gray-700">Import completeness <b>{importResult.product.importQuality.percentage}%</b> — {importResult.product.importQuality.detected} of {importResult.product.importQuality.total} key fields detected</div><div className="mt-2 flex flex-wrap gap-2">{["Title", "Description", "Images", "Price", "Brand", "Category", "Rating", "Variants"].map((label) => <span key={label} className="rounded-full bg-gray-100 px-2 py-1 text-xs">{label}</span>)}</div>{importResult.product.importQuality.missing.length > 0 && <p className="mb-0 mt-2 text-amber-700">Needs review: {importResult.product.importQuality.missing.join(", ")}</p>}</> : <p className="mb-0 mt-2 text-amber-700">{importResult.message}</p>}
+              </div>}
+            </div>
             <div className="mb-8 border-b border-gray-100 pb-8">
               <h3 className="mb-5 flex items-center gap-2 text-lg font-bold text-gray-900">
                 <span style={matIcon} className="text-[22px] text-pink-600">
@@ -538,6 +572,9 @@ const AddProduct = () => {
                   className="hidden"
                 />
               </label>
+              {importedImageUrls.length > 0 && images.length === 0 && (
+                <div className="mt-4 flex flex-wrap gap-3">{importedImageUrls.slice(0, 5).map((url, index) => <div key={url} className="relative h-[120px] w-[100px] overflow-hidden rounded-lg bg-gray-100 shadow-sm"><img src={url} alt={`Imported product ${index + 1}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.display = "none"; }} />{index === 0 && <span className="absolute bottom-0 left-0 right-0 bg-pink-600 py-1 text-center text-[10px] font-bold text-white">Main</span>}</div>)}</div>
+              )}
               {images.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-3">
                   {images.map((file, index) => (
