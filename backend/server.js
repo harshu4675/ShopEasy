@@ -16,7 +16,6 @@ const {
   parameterPollution,
 } = require("./middleware/security");
 
-const { startMaturitySweeper } = require("./services/commissionMaturity");
 const returnRoutes = require("./routes/returnRoutes");
 const paymentRoutes = require("./routes/payment");
 const sitemapRoutes = require("./routes/sitemap");
@@ -175,10 +174,12 @@ app.use("/api/categories", require("./routes/categories"));
 // Newsletter (public subscribe + admin list)
 app.use("/api/newsletter", require("./routes/newsletter"));
 
-// Reseller programme. The admin router is mounted on /api/admin *before* the
-// legacy admin routes so its more specific paths win.
-app.use("/api/reseller", require("./routes/reseller"));
-app.use("/api/admin", require("./routes/adminReseller"));
+// Affiliate product import management (admin-only).
+app.use("/api/admin/affiliate", require("./routes/affiliate"));
+
+// Affiliate redirect endpoint (public, whitelist-validated).
+app.use("/go", require("./routes/redirects"));
+
 app.use("/api/admin", require("./routes/admin"));
 
 // Health check
@@ -273,11 +274,6 @@ const server = app.listen(PORT, () => {
   console.log(`API listening on port ${PORT}`);
 });
 
-// Releases reseller commissions whose return window has closed. Without this
-// they would sit in pendingBalance indefinitely, since delivery always happens
-// before maturity.
-const stopMaturitySweeper = startMaturitySweeper();
-
 // Fail loudly but shut down cleanly, so in-flight requests aren't cut off.
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err);
@@ -286,7 +282,6 @@ process.on("unhandledRejection", (err) => {
 
 process.on("SIGTERM", () => {
   console.log("SIGTERM received, closing server");
-  stopMaturitySweeper();
   server.close(() => process.exit(0));
 });
 

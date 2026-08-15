@@ -383,74 +383,18 @@ export const newsletterAPI = {
 };
 
 /* ------------------------------------------------------------------ *
- * Reseller programme
+ * Affiliate product import (admin) + public redirect resolution
  * ------------------------------------------------------------------ */
-export const resellerAPI = {
-  // onboarding / profile
-  apply: (data) => api.post("/reseller/apply", data),
-  getMe: (config) => api.get("/reseller/me", config),
-  updateProfile: (data) => api.put("/reseller/me", data),
-
-  // catalog
-  getCatalog: (params) => api.get("/reseller/catalog", { params }),
-  listProducts: (params) => api.get("/reseller/products", { params }),
-  addProduct: (data) => api.post("/reseller/products", data),
-  updateProduct: (id, data) => api.put(`/reseller/products/${id}`, data),
-  removeProduct: (id) => api.delete(`/reseller/products/${id}`),
-
-  // sharing
-  getShareLinks: (id) => api.get(`/reseller/products/${id}/share`),
-
-  // orders
-  getOrders: (params) => api.get("/reseller/orders", { params }),
-  getOrder: (id) => api.get(`/reseller/orders/${id}`),
-
-  // wallet
-  getWallet: () => api.get("/reseller/wallet"),
-  getTransactions: (params) =>
-    api.get("/reseller/wallet/transactions", { params }),
-  requestWithdrawal: (data) => api.post("/reseller/withdrawals", data),
-  getWithdrawals: (params) => api.get("/reseller/withdrawals", { params }),
-  cancelWithdrawal: (id) => api.delete(`/reseller/withdrawals/${id}`),
-
-  // analytics + referrals + customers
-  getAnalytics: (params) => api.get("/reseller/analytics", { params }),
-  getCommissions: (params) => api.get("/reseller/commissions", { params }),
-  getReferrals: (params) => api.get("/reseller/referrals", { params }),
-  getCustomers: (params) => api.get("/reseller/customers", { params }),
-  exportReport: (params) =>
-    api.get("/reseller/reports/export", { params, responseType: "blob" }),
-
-  // public storefront (no auth)
-  getPublicProduct: (slug) => api.get(`/reseller/public/${slug}`),
-  getPublicStore: (code, params) =>
-    api.get(`/reseller/public/store/${code}`, { params }),
-};
-
-export const resellerAdminAPI = {
-  list: (params) => api.get("/admin/resellers", { params }),
-  getOne: (id) => api.get(`/admin/resellers/${id}`),
-  approve: (id, data) => api.patch(`/admin/resellers/${id}/approve`, data),
-  reject: (id, data) => api.patch(`/admin/resellers/${id}/reject`, data),
-  suspend: (id, data) => api.patch(`/admin/resellers/${id}/suspend`, data),
-  reinstate: (id) => api.patch(`/admin/resellers/${id}/reinstate`),
-  updateLimits: (id, data) => api.patch(`/admin/resellers/${id}/limits`, data),
-
-  getWithdrawals: (params) => api.get("/admin/withdrawals", { params }),
-  approveWithdrawal: (id, data) =>
-    api.patch(`/admin/withdrawals/${id}/approve`, data),
-  rejectWithdrawal: (id, data) =>
-    api.patch(`/admin/withdrawals/${id}/reject`, data),
-  markWithdrawalPaid: (id, data) =>
-    api.patch(`/admin/withdrawals/${id}/paid`, data),
-
-  getStats: () => api.get("/admin/resellers/stats/overview"),
-  getLeaderboard: (params) =>
-    api.get("/admin/resellers/stats/leaderboard", { params }),
-  getFraudSignals: (params) => api.get("/admin/resellers/fraud", { params }),
-  getReferrals: (params) => api.get("/admin/referrals", { params }),
-  getCommissionRules: () => api.get("/admin/commission-rules"),
-  updateCommissionRules: (data) => api.put("/admin/commission-rules", data),
+export const affiliateAPI = {
+  list: (params) => api.get("/admin/affiliate", { params }),
+  getOne: (id) => api.get(`/admin/affiliate/${id}`),
+  import: (url) => api.post("/admin/affiliate/import", { url }),
+  reimport: (id) => api.post(`/admin/affiliate/${id}/reimport`),
+  update: (id, data) => api.put(`/admin/affiliate/${id}`, data),
+  publish: (id) => api.patch(`/admin/affiliate/${id}/publish`),
+  unpublish: (id) => api.patch(`/admin/affiliate/${id}/unpublish`),
+  remove: (id) => api.delete(`/admin/affiliate/${id}`),
+  resolveUrl: (id) => api.get(`/products/${id}/affiliate-url`),
 };
 
 export const getErrorMessage = (error) => {

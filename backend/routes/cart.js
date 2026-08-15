@@ -52,6 +52,13 @@ router.post("/add", auth, async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
+    if (product.productType === "AFFILIATE") {
+      return res.status(400).json({
+        message:
+          "This product is sold by a partner. Use Buy Now to be redirected to the partner store.",
+      });
+    }
+
     if (product.stock < quantity) {
       return res.status(400).json({ message: "Insufficient stock" });
     }

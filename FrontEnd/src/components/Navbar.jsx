@@ -384,17 +384,6 @@ const Navbar = () => {
                               icon: "assignment_return",
                               label: "Returns",
                             },
-                            {
-                              // Approved resellers go to the hub, everyone
-                              // else to the application form.
-                              to: user.isReseller
-                                ? "/reseller"
-                                : "/reseller/apply",
-                              icon: "storefront",
-                              label: user.isReseller
-                                ? "Reseller Hub"
-                                : "Become a Reseller",
-                            },
                           ].map(({ to, icon, label, badge }) => (
                             <Link
                               key={to}
@@ -645,11 +634,6 @@ const Navbar = () => {
                   to: "/my-returns",
                   icon: "assignment_return",
                   label: "Returns",
-                },
-                {
-                  to: user.isReseller ? "/reseller" : "/reseller/apply",
-                  icon: "storefront",
-                  label: user.isReseller ? "Reseller Hub" : "Become a Reseller",
                 },
               ].map(({ to, icon, label, badge }) => (
                 <li key={to}>

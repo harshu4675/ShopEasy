@@ -268,8 +268,11 @@ const AdminLayout = ({ children }) => {
     { to: "/admin/coupons", icon: "local_offer", label: "Coupons" },
     { to: "/admin/reviews", icon: "star", label: "Reviews" },
     { to: "/admin/refunds", icon: "credit_card", label: "Refunds" },
-    { to: "/admin/resellers", icon: "storefront", label: "Resellers" },
-    { to: "/admin/withdrawals", icon: "payments", label: "Withdrawals" },
+    {
+      to: "/admin/affiliate",
+      icon: "link",
+      label: "Affiliate Products",
+    },
     {
       to: "/admin/notifications",
       icon: "notifications",
