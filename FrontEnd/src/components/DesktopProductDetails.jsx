@@ -499,6 +499,20 @@ const ProductDetails = () => {
               </div>
             ) : (
             <div className="mb-7 flex gap-3 max-md:mb-5 max-md:flex-col max-md:gap-[10px]">
+              {product.affiliateUrl && (
+                <a
+                  href={product.affiliateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 cursor-pointer rounded-[12px] border-none px-6 py-[14px] text-center text-[15px] font-bold text-white no-underline shadow-[0_4px_12px_rgba(16,185,129,0.3)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(16,185,129,0.4)] max-md:w-full max-md:px-5 max-md:text-[14px] max-[480px]:rounded-[10px] max-[480px]:px-[18px] max-[480px]:py-3 max-[480px]:text-[13px]"
+                  style={{
+                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  }}
+                >
+                  Buy Now{" "}
+                  {product.platform ? `on ${product.platform}` : ""} →
+                </a>
+              )}
               <button
                 onClick={addToCart}
                 disabled={product.stock === 0}

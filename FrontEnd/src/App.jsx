@@ -69,6 +69,7 @@ const AffiliateRedirect = lazy(() => import("./pages/AffiliateRedirect"));
 /* Admin — an entirely separate bundle from the storefront */
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AddProduct = lazy(() => import("./pages/admin/AddProduct"));
+const ImportProduct = lazy(() => import("./pages/admin/ImportProduct"));
 const EditProduct = lazy(() => import("./pages/admin/EditProduct"));
 const AllProducts = lazy(() => import("./pages/admin/AllProducts"));
 const AllOrders = lazy(() => import("./pages/admin/AllOrders"));
@@ -287,6 +288,14 @@ const AppLayout = () => {
               element={
                 <AdminRoute>
                   <AddProduct />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/import-product"
+              element={
+                <AdminRoute>
+                  <ImportProduct />
                 </AdminRoute>
               }
             />

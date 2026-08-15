@@ -164,12 +164,19 @@ app.use("/api/categories", require("./routes/categories"));
 // Newsletter (public subscribe + admin list)
 app.use("/api/newsletter", require("./routes/newsletter"));
 
+// Product import (admin only) — new multi-layer extraction engine
+app.use("/api/import", require("./routes/import"));
+
+// Image proxy (renders remote product images despite hotlink/CORS blocks)
+app.use("/api/image-proxy", require("./routes/imageProxy"));
+
 // Affiliate product import management (admin-only).
 app.use("/api/admin/affiliate", require("./routes/affiliate"));
 
 // Affiliate redirect endpoint (public, whitelist-validated).
 app.use("/go", require("./routes/redirects"));
 
+// The admin router is mounted on /api/admin.
 app.use("/api/admin", require("./routes/admin"));
 
 // Health check
