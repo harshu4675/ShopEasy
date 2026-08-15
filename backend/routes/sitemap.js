@@ -31,8 +31,10 @@ router.get("/sitemap.xml", async (req, res) => {
       smStream.write(page);
     });
 
-    // Get all products
-    const products = await Product.find().select("_id updatedAt");
+    // Get all published products (affiliate drafts stay out of the sitemap).
+    const products = await Product.find({
+      status: { $nin: ["draft", "unpublished"] },
+    }).select("_id updatedAt");
 
     // Add product pages
     products.forEach((product) => {

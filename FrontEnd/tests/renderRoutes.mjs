@@ -47,15 +47,13 @@ const USER = {
   email: "test@example.com",
   phone: "9876543210",
   role: "admin",
-  isReseller: true,
 };
 
 /**
  * Payload for each API path the app calls.
  *
- * Rules are evaluated in order and the most specific must come first: a bare
- * `/products` check would otherwise swallow `/reseller/products` and hand the
- * page an array where it expects a paginated envelope.
+ * Rules are evaluated in order and the most specific must come first, so a
+ * path with an extra segment is matched before its parent.
  */
 const paginated = (data) => ({
   success: true,
@@ -71,66 +69,14 @@ const paginated = (data) => ({
   summary: {},
 });
 
-const RESELLER_PROFILE = {
-  success: true,
-  isReseller: true,
-  data: {
-    _id: "r1",
-    storeName: "Test Store",
-    resellerCode: "TRTEST01",
-    referralCode: "REFTEST1",
-    status: process.env.RSTATUS || "approved",
-    commissionRate: 10,
-    maxMarginPercent: 50,
-    defaultMarginPercent: 15,
-    stats: { productsListed: 3, totalOrders: 2, totalSales: 1000, lifetimeEarnings: 200 },
-    shareBaseUrl: "http://localhost/store/TRTEST01",
-    wallet: { availableBalance: 500, pendingBalance: 100, lockedBalance: 0, lifetimeEarnings: 600 },
-  },
-};
-
 const ROUTE_TABLE = [
   [/\/auth\/me$/, () => ({ success: true, data: { user: USER } })],
 
-  // Reseller routes, most specific first.
-  [/\/reseller\/me$/, () => RESELLER_PROFILE],
-  [/\/reseller\/wallet$/, () => ({
-    success: true,
-    data: {
-      availableBalance: 500, pendingBalance: 100, lockedBalance: 0,
-      lifetimeEarnings: 600, totalWithdrawn: 0, todayEarnings: 50,
-      monthEarnings: 200, pendingWithdrawals: 0, minWithdrawal: 100,
-    },
-  })],
-  [/\/reseller\/catalog$/, () => paginated(PRODUCTS.map((x) => ({
-    ...x,
-    isListed: false,
-    maxMarginPercent: 50,
-    suggested: {
-      basePrice: x.price, marginPercent: 15,
-      marginAmount: Math.round(x.price * 0.15),
-      sellingPrice: Math.round(x.price * 1.15),
-    },
-  })))],
-  [/\/reseller\/products$/, () => paginated(PRODUCTS.slice(0, 4).map((x, i) => ({
-    _id: `rp${i}`, product: x, shareSlug: `slug${i}`, basePrice: x.price,
-    marginPercent: 15, marginAmount: 75, sellingPrice: x.price + 75,
-    isActive: true,
-    stats: { clicks: 3, orders: 1, unitsSold: 1, revenue: 500, earnings: 75 },
-    shareUrl: `http://localhost/s/slug${i}`,
-  })))],
-  [/\/reseller\/analytics$/, () => ({
-    success: true,
-    data: {
-      range: { days: 30 },
-      totals: { clicks: 10, orders: 2, revenue: 1000, earnings: 200, unitsSold: 3,
-        conversionRate: 20, averageOrderValue: 500 },
-      series: [], topProducts: [], topCustomers: [], monthly: [],
-    },
-  })],
-  [/\/reseller\//, () => paginated([])],
-
   // Storefront.
+  [/\/products\/[^/]+\/affiliate-url$/, () => ({
+    url: "https://www.amazon.in/dp/TESTASIN?tag=test-21",
+    platform: "Amazon",
+  })],
   [/\/products\/[^/]+$/, () => PRODUCTS[0]],
   [/\/products$/, () => PRODUCTS],
   [/\/banners\/active$/, () => [
@@ -149,21 +95,12 @@ const ROUTE_TABLE = [
   [/\/reviews\//, () => []],
   [/\/orders/, () => []],
   [/\/coupons$/, () => []],
-  [/\/admin\/resellers\/stats\/overview$/, () => ({
-    success: true,
-    data: {
-      resellers: { pending: 3, approved: 7 },
-      totalResellers: 10,
-      wallet: { available: 5000, pending: 1200, locked: 0, lifetime: 8000, withdrawn: 3000 },
-      pendingWithdrawals: { count: 2, amount: 1500 },
-      commissions: { gross: 4000, platformFee: 1000, net: 3000, orders: 20 },
-    },
-  })],
   [/\/admin\/dashboard$/, () => ({
     totalProducts: 66, totalOrders: 2, totalUsers: 2, totalRevenue: 5000,
     pendingOrders: 1, processingOrders: 0, deliveredOrders: 1, cancelledOrders: 0,
     refundRequested: 0, recentOrders: [], lowStockProducts: [],
   })],
+  [/\/admin\/affiliate$/, () => paginated([])],
   [/^\/api\/admin/, () => paginated([])],
 ];
 
@@ -177,10 +114,9 @@ const ROUTES = process.argv[2]
   ? [process.argv[2]]
   : ["/", "/products", "/product/p0", "/categories", "/cart", "/checkout",
      "/wishlist", "/login", "/register", "/account", "/my-orders", "/coupons",
-     "/contact", "/reseller", "/reseller/apply", "/reseller/catalog",
-     "/reseller/products", "/reseller/wallet", "/reseller/orders",
-     "/s/abc123", "/store/TRTEST01", "/admin/dashboard", "/admin/products",
-     "/admin/import-product"];
+     "/contact", "/go/product/p0", "/admin/dashboard",
+     "/admin/products", "/admin/import-product", "/admin/affiliate",
+     "/admin/affiliate/new"];
 
 /** Content each route must actually render, so an empty shell fails. */
 const EXPECT = {
@@ -188,11 +124,11 @@ const EXPECT = {
   "/products": /Test Product/,
   "/product/p0": /Test Product 0/,
   "/cart": /Test Product|cart/i,
-  "/reseller": /Test Store/,
-  "/reseller/catalog": /Test Product/,
-  "/reseller/products": /Test Product/,
-  "/admin/dashboard": /Resellers/,
+  "/go/product/p0": /Continue|Redirect/i,
+  "/admin/dashboard": /Resellers|Affiliate/,
   "/admin/import-product": /Import Product from URL/,
+  "/admin/affiliate": /Affiliate/,
+  "/admin/affiliate/new": /URL|url/i,
 };
 
 fs.writeFileSync(

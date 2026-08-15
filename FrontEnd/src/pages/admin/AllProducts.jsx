@@ -135,6 +135,11 @@ const AllProducts = () => {
                           <p className="text-[13px] text-gray-500 m-0">
                             {product.brand}
                           </p>
+                          {product.productType === "AFFILIATE" && (
+                            <span className="mt-1 inline-block rounded-[4px] bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                              Affiliate
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="py-4 px-5 border-b border-gray-200 text-sm">

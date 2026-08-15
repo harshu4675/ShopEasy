@@ -15,6 +15,8 @@ const { extractProductFromOpenGraph, extractOpenGraph } = require('./extractors/
 const { extractFromHtml } = require('./extractors/html');
 const { extractRendered } = require('./extractors/rendered');
 const cache = require('./cache');
+const dns = require('node:dns/promises');
+const net = require('node:net');
 
 // Providers
 const AmazonProvider = require('./providers/amazon');
@@ -42,6 +44,57 @@ const USER_AGENTS = [
 
 const FETCH_TIMEOUT = 15000; // 15 seconds
 const NAV_TIMEOUT = 30000;   // 30 seconds for full page load
+
+/**
+ * SSRF guard: rejects URLs that point at private/loopback/link-local hosts so
+ * an admin-supplied URL can never be turned into a request against internal
+ * infrastructure.
+ */
+function isPrivateAddress(ip) {
+  return (
+    ip === '::1' ||
+    ip === '::' ||
+    ip.startsWith('fc') ||
+    ip.startsWith('fd') ||
+    ip.startsWith('fe80:') ||
+    ip.startsWith('::ffff:127.') ||
+    ip.startsWith('::ffff:10.') ||
+    ip.startsWith('::ffff:192.168.') ||
+    /^127\./.test(ip) ||
+    /^10\./.test(ip) ||
+    /^192\.168\./.test(ip) ||
+    /^169\.254\./.test(ip) ||
+    /^0\./.test(ip) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
+  );
+}
+
+async function assertPublicUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw Object.assign(new Error('Enter a valid http or https URL.'), {
+      reason: 'INVALID_URL',
+    });
+  }
+  if (!/^https?:$/.test(parsed.protocol) || parsed.username || parsed.password) {
+    throw Object.assign(new Error('Enter a public http or https URL.'), {
+      reason: 'INVALID_URL',
+    });
+  }
+
+  const addresses = net.isIP(parsed.hostname)
+    ? [{ address: parsed.hostname }]
+    : await dns.lookup(parsed.hostname, { all: true }).catch(() => []);
+
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw Object.assign(new Error('The URL must point to a public website.'), {
+      reason: 'INVALID_URL',
+    });
+  }
+  return parsed.href;
+}
 
 /**
  * Main import function.
@@ -76,6 +129,19 @@ async function importProduct(url, options = {}) {
 
   const originalAffiliateUrl = url.trim();
   addLog('URL received', { url: originalAffiliateUrl });
+
+  // --- 1b. SSRF guard (public URL only) ---
+  try {
+    await assertPublicUrl(originalAffiliateUrl);
+  } catch (err) {
+    return {
+      success: false,
+      reason: 'INVALID_URL',
+      message: err.message,
+      platform: null,
+      log,
+    };
+  }
 
   // --- 2. Cache check ---
   const cacheKey = normaliseUrl(originalAffiliateUrl);

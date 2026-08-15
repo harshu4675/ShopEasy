@@ -100,13 +100,61 @@ const productSchema = new mongoose.Schema({
   },
   tags: [String],
 
-  // Affiliate / import metadata. When set, the storefront "Buy Now" action
-  // routes the customer to affiliateUrl (the exact URL the admin pasted)
-  // instead of the internal checkout.
+  salesCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  isTrending: {
+    type: Boolean,
+    default: false,
+  },
+  trendingOrder: {
+    type: Number,
+    default: 0,
+  },
+
+  /* ------------------------------------------------------------------ *
+   * Affiliate products.
+   *
+   * INTERNAL products are the storefront's own catalogue. AFFILIATE products
+   * are imported from an external platform (e.g. Amazon) and sold there: the
+   * "Buy Now" action redirects the shopper to `affiliateUrl` instead of the
+   * local checkout. Defaults keep every existing product working untouched.
+   * ------------------------------------------------------------------ */
+  productType: {
+    type: String,
+    enum: ["INTERNAL", "AFFILIATE"],
+    default: "INTERNAL",
+    index: true,
+  },
+  // Visibility. Affiliate products start as `draft` and become visible to
+  // customers only once an admin publishes them. INTERNAL products are
+  // `published` by default.
+  status: {
+    type: String,
+    enum: ["draft", "published", "unpublished"],
+    default: "published",
+    index: true,
+  },
+  sourcePlatform: {
+    type: String,
+    trim: true,
+  },
+  externalProductId: {
+    type: String,
+    trim: true,
+  },
+  originalUrl: {
+    type: String,
+    trim: true,
+  },
   affiliateUrl: {
     type: String,
     trim: true,
   },
+  // The exact URL the admin pasted. Never overwritten by the canonical
+  // product URL — "Buy Now" must always use this value.
   originalAffiliateUrl: {
     type: String,
     trim: true,
@@ -123,23 +171,37 @@ const productSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // Free-form import diagnostics (extraction layers, raw identifiers, ...)
   importMetadata: {
     type: mongoose.Schema.Types.Mixed,
     default: null,
   },
-
-  salesCount: {
+  availability: {
+    type: String,
+    trim: true,
+  },
+  // Provider-supplied variants (sizes, colours, dimensions...) that don't map
+  // to the storefront's fixed size/colour vocabulary.
+  variants: {
+    type: Array,
+    default: [],
+  },
+  importStatus: {
+    type: String,
+    enum: ["imported", "updated", "partial", "error"],
+    default: "imported",
+  },
+  importError: {
+    type: String,
+    default: "",
+  },
+  importedAt: {
+    type: Date,
+  },
+  affiliateClicks: {
     type: Number,
     default: 0,
     min: 0,
-  },
-  isTrending: {
-    type: Boolean,
-    default: false,
-  },
-  trendingOrder: {
-    type: Number,
-    default: 0,
   },
 
   createdAt: {

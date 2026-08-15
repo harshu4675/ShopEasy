@@ -10,10 +10,10 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const { importProduct, clearCache, detectPlatform } = require('../services/productImporter');
-const { debugLog } = require('../services/productImporter/debug');
+const { importProduct, clearCache, detectPlatform } = require('../services/importer');
+const { debugLog } = require('../services/importer/debug');
 const Product = require('../models/Product');
-const { extractPrice } = require('../services/productImporter/utils/price');
+const { extractPrice } = require('../services/importer/utils/price');
 
 /**
  * POST /api/import/preview
@@ -155,7 +155,7 @@ router.post('/save', auth, admin, async (req, res) => {
  * List available import providers.
  */
 router.get('/providers', auth, admin, async (req, res) => {
-  const { PROVIDERS } = require('../services/productImporter');
+  const { PROVIDERS } = require('../services/importer');
   const providers = PROVIDERS.map(p => ({
     name: p.name ? p.name.replace('Provider', '') : 'Generic',
     canHandle: p.canHandle.toString().slice(0, 100),

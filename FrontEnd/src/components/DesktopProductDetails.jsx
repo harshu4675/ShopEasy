@@ -153,6 +153,11 @@ const ProductDetails = () => {
       )
     : product?.discount || 0;
 
+  const isAffiliate = product?.productType === "AFFILIATE";
+  const platformName = product?.sourcePlatform
+    ? product.sourcePlatform.charAt(0).toUpperCase() + product.sourcePlatform.slice(1)
+    : "";
+
   if (loading) return <Loader fullScreen />;
   if (!product)
     return <div className="container mx-auto px-4">Product not found</div>;
@@ -255,6 +260,25 @@ const ProductDetails = () => {
             >
               {product.brand}
             </div>
+
+            {isAffiliate && (
+              <div className="mb-2 flex items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-1 rounded-[6px] px-3 py-1 text-[11px] font-bold uppercase tracking-[1px] text-white"
+                  style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" }}
+                >
+                  <span style={matIcon} className="text-[14px]">
+                    link
+                  </span>
+                  Affiliate Product
+                </span>
+                {platformName && (
+                  <span className="text-[12px] font-semibold text-[#6b7280]">
+                    Sold on {platformName}
+                  </span>
+                )}
+              </div>
+            )}
 
             <h1 className="mb-[14px] text-[26px] font-extrabold leading-[1.3] text-[#1a1a2e] max-md:mb-3 max-md:text-[20px] max-[480px]:mb-[10px] max-[480px]:text-[18px]">
               {product.name}
@@ -388,6 +412,7 @@ const ProductDetails = () => {
               </div>
             )}
 
+            {!isAffiliate && (
             <div className="mb-5 rounded-[12px] border border-[rgba(102,126,234,0.04)] bg-white p-[18px] shadow-[0_2px_8px_rgba(102,126,234,0.06)] max-md:mb-[14px] max-md:p-[14px] max-[480px]:mb-3 max-[480px]:rounded-[10px] max-[480px]:p-3">
               <label className="mb-3 block text-[13px] font-bold uppercase tracking-[0.5px] text-[#1a1a2e] max-md:mb-[10px] max-md:text-[12px] max-[480px]:mb-2 max-[480px]:text-[11px]">
                 Quantity:
@@ -435,7 +460,9 @@ const ProductDetails = () => {
                 </button>
               </div>
             </div>
+            )}
 
+            {!isAffiliate && (
             <div className="mb-5 text-[13px] font-semibold max-md:mb-4 max-md:text-[12px]">
               {product.stock > 0 ? (
                 <span className="inline-block rounded-[8px] bg-[rgba(16,185,129,0.1)] px-4 py-[10px] text-[#059669] max-md:px-3 max-md:py-2 max-[480px]:px-3 max-[480px]:py-2">
@@ -447,7 +474,29 @@ const ProductDetails = () => {
                 </span>
               )}
             </div>
+            )}
 
+            {isAffiliate ? (
+              <div className="mb-7">
+                <Link
+                  to={`/go/product/${product._id}`}
+                  className="flex items-center justify-center gap-2 rounded-[12px] border-none px-6 py-[16px] text-[16px] font-bold text-white no-underline shadow-[0_4px_12px_rgba(102,126,234,0.3)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(102,126,234,0.4)] max-md:w-full max-md:px-5 max-md:text-[14px] max-[480px]:rounded-[10px] max-[480px]:px-[18px] max-[480px]:py-3 max-[480px]:text-[13px]"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  }}
+                >
+                  <span style={matIcon} className="text-[20px]">
+                    open_in_new
+                  </span>
+                  Buy Now on {platformName || "Partner Store"}
+                </Link>
+                <p className="m-0 mt-2 text-center text-[12px] text-[#6b7280]">
+                  You will be redirected to {platformName || "the partner store"}{" "}
+                  to complete this purchase.
+                </p>
+              </div>
+            ) : (
             <div className="mb-7 flex gap-3 max-md:mb-5 max-md:flex-col max-md:gap-[10px]">
               {product.affiliateUrl && (
                 <a
@@ -509,7 +558,9 @@ const ProductDetails = () => {
                 Share
               </button>
             </div>
+            )}
 
+            {!isAffiliate && (
             <div
               className="grid grid-cols-3 gap-3 rounded-[12px] p-[18px] max-md:grid-cols-1 max-md:gap-[10px] max-md:p-[14px] max-[480px]:gap-2 max-[480px]:rounded-[10px] max-[480px]:p-3"
               style={{
@@ -555,9 +606,11 @@ const ProductDetails = () => {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
 
+        {!isAffiliate && (
         <div className="border-t border-[rgba(102,126,234,0.1)] pt-10 max-md:pt-8 max-[480px]:pt-6">
           <div className="mb-7 flex flex-wrap items-center justify-between gap-4 max-md:mb-[14px] max-md:flex-col max-md:items-start max-md:gap-[14px]">
             <h2 className="text-[22px] font-extrabold text-[#1a1a2e] max-md:text-[20px] max-[480px]:text-[18px]">
@@ -689,6 +742,7 @@ const ProductDetails = () => {
             )}
           </div>
         </div>
+        )}
       </div>
 
       <SizeChart

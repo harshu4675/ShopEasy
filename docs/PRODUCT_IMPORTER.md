@@ -225,7 +225,7 @@ To test with **real** product URLs (requires internet):
 ## Files
 
 ```
-backend/services/productImporter/
+backend/services/importer/
   index.js                  # orchestrator: validate → fetch → detect → extract → normalize
   cache.js                  # short-lived TTL cache
   debug.js                  # structured server-side debug logging

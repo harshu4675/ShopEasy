@@ -183,21 +183,6 @@ const Account = () => {
       ],
     },
     {
-      title: "Earn With Us",
-      items: [
-        {
-          // Resolves to the hub for approved resellers and to the
-          // application form for everyone else.
-          to: user?.isReseller ? "/reseller" : "/reseller/apply",
-          icon: "storefront",
-          label: user?.isReseller ? "Reseller Hub" : "Become a Reseller",
-          desc: user?.isReseller
-            ? "Products, orders, wallet and analytics"
-            : "Share products and earn on every sale",
-        },
-      ],
-    },
-    {
       title: "Support",
       items: [
         {

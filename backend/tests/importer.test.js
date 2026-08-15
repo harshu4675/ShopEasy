@@ -16,13 +16,13 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 
-const { importProduct, detectPlatform } = require('../services/productImporter');
-const { extractProductFromJsonLd } = require('../services/productImporter/extractors/jsonld');
-const { extractProductFromOpenGraph } = require('../services/productImporter/extractors/opengraph');
-const { extractFromHtml } = require('../services/productImporter/extractors/html');
-const { extractImages } = require('../services/productImporter/utils/image');
-const { extractPrice, parsePrice } = require('../services/productImporter/utils/price');
-const { isValidUrl } = require('../services/productImporter/utils/url');
+const { importProduct, detectPlatform } = require('../services/importer');
+const { extractProductFromJsonLd } = require('../services/importer/extractors/jsonld');
+const { extractProductFromOpenGraph } = require('../services/importer/extractors/opengraph');
+const { extractFromHtml } = require('../services/importer/extractors/html');
+const { extractImages } = require('../services/importer/utils/image');
+const { extractPrice, parsePrice } = require('../services/importer/utils/price');
+const { isValidUrl } = require('../services/importer/utils/url');
 
 /* ------------------------------------------------------------------ *
  * Fixtures
@@ -424,7 +424,7 @@ test('importProduct pipeline with mocked Flipkart page', async () => {
 
 test('importProduct preserves affiliate URL through redirects', async () => {
   const originalFetch = global.fetch;
-  const affiliateUrl = 'https://tracking.example.com/click?url=https%3A%2F%2Fwww.amazon.in%2Fdp%2FB0CHZ1TL37&aff=123';
+  const affiliateUrl = 'https://www.amazon.in/gp/redirect.html?location=https%3A%2F%2Fwww.amazon.in%2Fdp%2FB0CHZ1TL37&tag=aff123';
   let callCount = 0;
 
   global.fetch = async (url) => {

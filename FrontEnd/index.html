@@ -25,17 +25,7 @@
     />
     <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
-    <!--
-      Single, consolidated Google Fonts request.
-
-      Replaces ~15 duplicate runtime <link> injections (one per component) that
-      each re-requested Poppins / Inter / Great Vibes / Cinzel / Material
-      Symbols. Same families and weights the UI actually uses, so rendering is
-      unchanged; unused weights (Poppins 300, 900, Cinzel 800/900) are dropped.
-
-      Loaded non-blocking: `media="print"` + onload swap lets the browser paint
-      immediately, and `display=swap` guarantees text is never invisible.
-    -->
+    <meta name="p:domain_verify" content="dfb910668a8ff15322fd22ca5e29db25" />
     <link
       rel="preload"
       as="style"
@@ -45,7 +35,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Great+Vibes&family=Cinzel:wght@700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap"
       media="print"
-      onload="this.media='all'"
+      onload="this.media = 'all'"
     />
     <noscript>
       <link

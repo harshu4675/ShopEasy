@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { api, formatPrice, resellerAdminAPI } from "../../utils/api";
+import { api, formatPrice } from "../../utils/api";
 import Loader from "../../components/Loader";
 
 const matIcon = {
@@ -13,11 +13,6 @@ const matIcon = {
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
-  const [resellerStats, setResellerStats] = useState({
-    totalResellers: 0,
-    pendingResellers: 0,
-    pendingWithdrawals: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState("");
 
@@ -40,7 +35,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    fetchResellerStats();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -51,22 +45,6 @@ const Dashboard = () => {
       console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Reseller counters load separately so a failure here cannot blank the
-  // dashboard; the tiles simply show zero.
-  const fetchResellerStats = async () => {
-    try {
-      const { data } = await resellerAdminAPI.getStats();
-      const overview = data?.data || {};
-      setResellerStats({
-        totalResellers: overview.totalResellers || 0,
-        pendingResellers: overview.resellers?.pending || 0,
-        pendingWithdrawals: overview.pendingWithdrawals?.count || 0,
-      });
-    } catch (error) {
-      console.error("Error fetching reseller stats:", error);
     }
   };
 
@@ -279,19 +257,10 @@ const Dashboard = () => {
       badge: stats.refundRequested,
     },
     {
-      to: "/admin/resellers",
-      label: "Resellers",
-      icon: "storefront",
+      to: "/admin/affiliate",
+      label: "Affiliate Products",
+      icon: "link",
       color: "bg-fuchsia-500",
-      count: resellerStats.totalResellers,
-      badge: resellerStats.pendingResellers,
-    },
-    {
-      to: "/admin/withdrawals",
-      label: "Withdrawals",
-      icon: "payments",
-      color: "bg-emerald-500",
-      badge: resellerStats.pendingWithdrawals,
     },
   ];
 

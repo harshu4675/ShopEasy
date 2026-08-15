@@ -62,29 +62,8 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const ReturnRequest = lazy(() => import("./pages/ReturnRequest"));
 const Account = lazy(() => import("./pages/Account"));
 
-/* Reseller programme */
-const ResellerApply = lazy(() => import("./pages/reseller/ResellerApply"));
-const ResellerDashboard = lazy(
-  () => import("./pages/reseller/ResellerDashboard"),
-);
-const ResellerCatalog = lazy(() => import("./pages/reseller/ResellerCatalog"));
-const ResellerProducts = lazy(
-  () => import("./pages/reseller/ResellerProducts"),
-);
-const ResellerOrders = lazy(() => import("./pages/reseller/ResellerOrders"));
-const ResellerWallet = lazy(() => import("./pages/reseller/ResellerWallet"));
-const ResellerAnalytics = lazy(
-  () => import("./pages/reseller/ResellerAnalytics"),
-);
-const ResellerReferrals = lazy(
-  () => import("./pages/reseller/ResellerReferrals"),
-);
-const ResellerCustomers = lazy(
-  () => import("./pages/reseller/ResellerCustomers"),
-);
-const ResellerStorefront = lazy(
-  () => import("./pages/reseller/ResellerStorefront"),
-);
+/* Public affiliate redirect (resolves and forwards to the external product). */
+const AffiliateRedirect = lazy(() => import("./pages/AffiliateRedirect"));
 
 /* Admin — an entirely separate bundle from the storefront */
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -107,8 +86,10 @@ const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
 const AdminNotifications = lazy(
   () => import("./pages/admin/AdminNotifications"),
 );
-const ManageResellers = lazy(() => import("./pages/admin/ManageResellers"));
-const ManageWithdrawals = lazy(() => import("./pages/admin/ManageWithdrawals"));
+const AffiliateProducts = lazy(() => import("./pages/admin/AffiliateProducts"));
+const AffiliateProductEditor = lazy(
+  () => import("./pages/admin/AffiliateProductEditor"),
+);
 
 /** Mobile header titles, keyed by pathname. */
 const MOBILE_TITLES = {
@@ -125,15 +106,6 @@ const MOBILE_TITLES = {
   "/terms": "TERMS",
   "/return-request": "RETURN REQUEST",
   "/categories": "CATEGORIES",
-  "/reseller": "RESELLER HUB",
-  "/reseller/apply": "BECOME A RESELLER",
-  "/reseller/catalog": "CATALOG",
-  "/reseller/products": "MY PRODUCTS",
-  "/reseller/orders": "RESELLER ORDERS",
-  "/reseller/wallet": "WALLET",
-  "/reseller/analytics": "ANALYTICS",
-  "/reseller/referrals": "REFERRALS",
-  "/reseller/customers": "CUSTOMERS",
 };
 
 const getMobileTitle = (pathname) => {
@@ -209,9 +181,8 @@ const AppLayout = () => {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* Public reseller storefront (shareable links) */}
-            <Route path="/s/:slug" element={<ResellerStorefront />} />
-            <Route path="/store/:code" element={<ResellerStorefront />} />
+            {/* Resolves an affiliate product to its external destination. */}
+            <Route path="/go/product/:id" element={<AffiliateRedirect />} />
 
             <Route
               path="/cart"
@@ -274,80 +245,6 @@ const AppLayout = () => {
               element={
                 <ProtectedRoute>
                   <Account />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Reseller programme (authenticated) */}
-            <Route
-              path="/reseller/apply"
-              element={
-                <ProtectedRoute>
-                  <ResellerApply />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller"
-              element={
-                <ProtectedRoute>
-                  <ResellerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller/catalog"
-              element={
-                <ProtectedRoute>
-                  <ResellerCatalog />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller/products"
-              element={
-                <ProtectedRoute>
-                  <ResellerProducts />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller/orders"
-              element={
-                <ProtectedRoute>
-                  <ResellerOrders />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller/wallet"
-              element={
-                <ProtectedRoute>
-                  <ResellerWallet />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller/analytics"
-              element={
-                <ProtectedRoute>
-                  <ResellerAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller/referrals"
-              element={
-                <ProtectedRoute>
-                  <ResellerReferrals />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reseller/customers"
-              element={
-                <ProtectedRoute>
-                  <ResellerCustomers />
                 </ProtectedRoute>
               }
             />
@@ -482,18 +379,26 @@ const AppLayout = () => {
               }
             />
             <Route
-              path="/admin/resellers"
+              path="/admin/affiliate"
               element={
                 <AdminRoute>
-                  <ManageResellers />
+                  <AffiliateProducts />
                 </AdminRoute>
               }
             />
             <Route
-              path="/admin/withdrawals"
+              path="/admin/affiliate/new"
               element={
                 <AdminRoute>
-                  <ManageWithdrawals />
+                  <AffiliateProductEditor />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/affiliate/:id"
+              element={
+                <AdminRoute>
+                  <AffiliateProductEditor />
                 </AdminRoute>
               }
             />

@@ -13,7 +13,6 @@ import {
   validatePincode,
   lookupPincode,
 } from "../utils/pincodeService";
-import { getResellerRef, clearResellerRef } from "../utils/resellerRef";
 import Loader from "../components/Loader";
 
 const Checkout = () => {
@@ -309,11 +308,8 @@ const Checkout = () => {
         paymentMethod: formData.paymentMethod,
         ...(paymentId && { razorpayPaymentId: paymentId }),
         ...(orderId && { razorpayOrderId: orderId }),
-        // Credits the reseller when the shopper arrived via a shared link.
-        ...(getResellerRef() ? { resellerCode: getResellerRef() } : {}),
       };
       await api.post("/orders", orderData);
-      clearResellerRef();
       showToast("Order placed successfully!", "success");
       navigate("/my-orders");
     } catch (error) {
