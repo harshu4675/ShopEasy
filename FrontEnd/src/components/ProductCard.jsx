@@ -141,6 +141,20 @@ const ProductCard = ({ product }) => {
         </span>
       )}
 
+      {product.productType === "AFFILIATE" && (
+        <span
+          className="absolute right-[10px] top-[10px] z-10 flex items-center gap-1 rounded-[6px] px-[10px] py-1 text-[10px] font-bold tracking-[0.3px] text-white shadow-[0_2px_8px_rgba(99,102,241,0.4)] max-md:right-2 max-md:top-2 max-md:px-[7px] max-md:py-[3px] max-md:text-[9px] max-[480px]:rounded-[4px] max-[480px]:px-[6px] max-[480px]:py-[2px] max-[480px]:text-[8px]"
+          style={{
+            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+          }}
+        >
+          <span style={matIcon} className="text-[12px]">
+            link
+          </span>
+          Affiliate
+        </span>
+      )}
+
       <div
         className="relative w-full overflow-hidden bg-white"
         style={{ paddingTop: "100%" }}
@@ -191,6 +205,7 @@ const ProductCard = ({ product }) => {
             )}
           </button>
 
+          {product.productType !== "AFFILIATE" && (
           <button
             onClick={addToCart}
             disabled={loading.cart || inCart}
@@ -235,6 +250,7 @@ const ProductCard = ({ product }) => {
               </span>
             )}
           </button>
+          )}
         </div>
       </div>
 
@@ -306,7 +322,7 @@ const ProductCard = ({ product }) => {
           )}
         </div>
 
-        {product.stock === 0 && (
+        {product.productType !== "AFFILIATE" && product.stock === 0 && (
           <div
             className="mt-2 rounded-[6px] px-[10px] py-[6px] text-center text-[10px] font-bold uppercase tracking-[0.5px] text-[#dc2626] max-[480px]:mt-[6px] max-[480px]:rounded-[4px] max-[480px]:text-[9px]"
             style={{

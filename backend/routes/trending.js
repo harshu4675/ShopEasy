@@ -9,7 +9,10 @@ router.get("/", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 8;
 
-    const pinned = await Product.find({ isTrending: true })
+    const pinned = await Product.find({
+      isTrending: true,
+      status: { $nin: ["draft", "unpublished"] },
+    })
       .sort({ trendingOrder: 1, salesCount: -1 })
       .limit(limit);
 
@@ -23,6 +26,7 @@ router.get("/", async (req, res) => {
         _id: { $nin: pinnedIds },
         stock: { $gt: 0 },
         salesCount: { $gt: 0 },
+        status: { $nin: ["draft", "unpublished"] },
       })
         .sort({ salesCount: -1, rating: -1 })
         .limit(remaining);
@@ -36,6 +40,7 @@ router.get("/", async (req, res) => {
         const fallback = await Product.find({
           _id: { $nin: existingIds },
           stock: { $gt: 0 },
+          status: { $nin: ["draft", "unpublished"] },
         })
           .sort({ rating: -1, numReviews: -1, createdAt: -1 })
           .limit(finalRemaining);
@@ -81,7 +86,10 @@ router.get("/best-sellers", async (req, res) => {
     ]);
 
     const productIds = bestSellersAgg.map((b) => b._id);
-    const products = await Product.find({ _id: { $in: productIds } });
+    const products = await Product.find({
+      _id: { $in: productIds },
+      status: { $nin: ["draft", "unpublished"] },
+    });
 
     const result = bestSellersAgg
       .map((b) => {
