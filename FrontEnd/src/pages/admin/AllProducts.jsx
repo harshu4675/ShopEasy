@@ -61,6 +61,13 @@ const AllProducts = () => {
             <span><span style={matIcon}>add</span></span>
             <span>Add Product</span>
           </Link>
+          <Link
+            to="/admin/import-product"
+            className="inline-flex items-center justify-center gap-2 py-3.5 px-7 border-none rounded-md cursor-pointer font-[inherit] text-[15px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover md:hidden"
+          >
+            <span><span style={matIcon}>download</span></span>
+            <span>Import</span>
+          </Link>
         </div>
 
         {/* Search */}
@@ -273,14 +280,22 @@ const AllProducts = () => {
           </>
         )}
 
-        {/* Mobile FAB */}
-        <div className="hidden md:!flex fixed bottom-20 right-5 z-[1000]">
+        {/* Mobile FABs */}
+        <div className="hidden md:!flex fixed bottom-20 right-5 z-[1000] gap-3">
+          <Link
+            to="/admin/import-product"
+            className="w-14 h-14 rounded-full bg-[#be185d] text-white border-none shadow-[0_4px_12px_rgba(0,0,0,0.3)] flex items-center justify-center text-2xl cursor-pointer transition-all duration-200 no-underline hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
+            title="Import Product"
+          >
+            <span style={matIcon} className="align-middle text-[16px]">download</span>
+          </Link>
           <Link
             to="/admin/add-product"
             className="w-14 h-14 rounded-full bg-primary text-white border-none shadow-[0_4px_12px_rgba(0,0,0,0.3)] flex items-center justify-center text-2xl cursor-pointer transition-all duration-200 no-underline hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
             title="Add Product"
           >
-            <span style={matIcon} className="mr-1 align-middle text-[16px]">add</span></Link>
+            <span style={matIcon} className="align-middle text-[16px]">add</span>
+          </Link>
         </div>
       </div>
     </div>

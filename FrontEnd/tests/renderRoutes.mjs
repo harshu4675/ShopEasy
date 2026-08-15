@@ -114,8 +114,9 @@ const ROUTES = process.argv[2]
   ? [process.argv[2]]
   : ["/", "/products", "/product/p0", "/categories", "/cart", "/checkout",
      "/wishlist", "/login", "/register", "/account", "/my-orders", "/coupons",
-     "/contact", "/go/product/p0", "/admin/dashboard", "/admin/products",
-     "/admin/affiliate", "/admin/affiliate/new"];
+     "/contact", "/go/product/p0", "/admin/dashboard",
+     "/admin/products", "/admin/import-product", "/admin/affiliate",
+     "/admin/affiliate/new"];
 
 /** Content each route must actually render, so an empty shell fails. */
 const EXPECT = {
@@ -124,7 +125,8 @@ const EXPECT = {
   "/product/p0": /Test Product 0/,
   "/cart": /Test Product|cart/i,
   "/go/product/p0": /Continue|Redirect/i,
-  "/admin/dashboard": /Affiliate/,
+  "/admin/dashboard": /Resellers|Affiliate/,
+  "/admin/import-product": /Import Product from URL/,
   "/admin/affiliate": /Affiliate/,
   "/admin/affiliate/new": /URL|url/i,
 };

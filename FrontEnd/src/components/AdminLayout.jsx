@@ -261,6 +261,7 @@ const AdminLayout = ({ children }) => {
 
   const secondaryNav = [
     { to: "/admin/add-product", icon: "add_circle", label: "Add Product" },
+    { to: "/admin/import-product", icon: "download", label: "Import Product" },
     { to: "/admin/categories", icon: "category", label: "Categories" },
     { to: "/admin/banners", icon: "view_carousel", label: "Banners" },
     { to: "/admin/trending", icon: "trending_up", label: "Trending" },

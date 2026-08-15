@@ -1,5 +1,9 @@
 const { ImportError, CODES } = require("./affiliate/errors");
 const { detectProvider, generic, isSafeRedirectUrl } = require("./affiliate");
+// The new multi-layer extraction engine (JSON-LD + OpenGraph + DOM patterns +
+// platform providers). Used as the primary extraction path; the legacy
+// single-pass providers remain as the fallback.
+const { importProduct: importWithNewEngine } = require("./importer");
 
 const CATEGORY_ENUM = [
   "Men's Clothing",
@@ -67,6 +71,45 @@ function inspectUrl(url) {
 }
 
 /**
+ * Maps a new-engine import result onto the legacy provider result shape so the
+ * rest of the affiliate pipeline (category mapping, missing-field report,
+ * draft creation) keeps working unchanged.
+ */
+function mapImporterResult(result) {
+  const p = result.product || {};
+  const variants = [];
+  if (Array.isArray(p.sizes) && p.sizes.length) {
+    variants.push(...p.sizes.map((value) => ({ name: "Size", value })));
+  }
+  if (Array.isArray(p.colors) && p.colors.length) {
+    variants.push(...p.colors.map((value) => ({ name: "Color", value })));
+  }
+  const rating =
+    typeof p.rating === "number"
+      ? p.rating
+      : typeof p.ratingValue === "number"
+        ? p.ratingValue
+        : 0;
+  return {
+    title: p.title || "",
+    description: p.description || "",
+    images: Array.isArray(p.images) ? p.images : [],
+    price: p.price ?? null,
+    originalPrice: p.originalPrice ?? null,
+    discount: p.discountPercentage || p.discount || 0,
+    brand: p.brand || "",
+    category: p.category || "",
+    rating,
+    reviewCount: typeof p.reviewCount === "number" ? p.reviewCount : 0,
+    variants,
+    availability: p.stockStatus || p.availability || "",
+    externalProductId: p.productId || p.asin || p.sku || "",
+    originalUrl: p.finalResolvedUrl || p.canonicalUrl || "",
+    sourcePlatform: p.platform || "unknown",
+  };
+}
+
+/**
  * Attempts to import product data from a pasted URL using publicly visible
  * page metadata. Never requires marketplace API credentials.
  *
@@ -85,9 +128,36 @@ async function importFromUrl(url, deps = {}) {
   let fetchFailed = false;
   let errorMessage = "";
 
+  // Primary path: the new multi-layer importer. It is skipped when a custom
+  // fetchPage is injected (tests / controlled environments) so the legacy
+  // providers, which honour that dependency, handle the fetch instead.
+  if (!deps.fetchPage) {
+    try {
+      const outcome = await importWithNewEngine(normalizedUrl, {
+        useRendered: false,
+      });
+      if (outcome.success && outcome.product) {
+        extracted = mapImporterResult(outcome);
+      } else if (
+        ["BLOCKED", "TIMEOUT", "NETWORK_ERROR"].includes(outcome.reason)
+      ) {
+        fetchFailed = true;
+        errorMessage =
+          outcome.message ||
+          "Automatic extraction was not available for this page.";
+      }
+      // INVALID_URL / NO_PRODUCT_DATA → fall through to the legacy providers.
+    } catch (err) {
+      // Legacy providers still get a chance below.
+      console.error("[affiliate] new-engine import failed, falling back:", err.message);
+    }
+  }
+
   if (provider) {
     try {
-      extracted = await provider.importProduct(normalizedUrl, deps);
+      if (!extracted && !fetchFailed) {
+        extracted = await provider.importProduct(normalizedUrl, deps);
+      }
     } catch (err) {
       if (err instanceof ImportError && err.code === CODES.NOT_SUPPORTED) {
         // Provider registered but no public path yet → use the generic one.
@@ -108,7 +178,7 @@ async function importFromUrl(url, deps = {}) {
         throw err;
       }
     }
-  } else {
+  } else if (!extracted && !fetchFailed) {
     warnings.push(
       "This marketplace is not specifically supported. We'll try to extract publicly available product metadata.",
     );

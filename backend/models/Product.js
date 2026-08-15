@@ -99,11 +99,6 @@ const productSchema = new mongoose.Schema({
     default: 0,
   },
   tags: [String],
-  affiliateUrl: { type: String, trim: true },
-  sourceUrl: { type: String, trim: true },
-  canonicalUrl: { type: String, trim: true },
-  platform: { type: String, trim: true },
-  importMetadata: { type: mongoose.Schema.Types.Mixed },
 
   salesCount: {
     type: Number,
@@ -157,6 +152,29 @@ const productSchema = new mongoose.Schema({
   affiliateUrl: {
     type: String,
     trim: true,
+  },
+  // The exact URL the admin pasted. Never overwritten by the canonical
+  // product URL — "Buy Now" must always use this value.
+  originalAffiliateUrl: {
+    type: String,
+    trim: true,
+  },
+  sourceUrl: {
+    type: String,
+    trim: true,
+  },
+  canonicalUrl: {
+    type: String,
+    trim: true,
+  },
+  platform: {
+    type: String,
+    trim: true,
+  },
+  // Free-form import diagnostics (extraction layers, raw identifiers, ...)
+  importMetadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
   },
   availability: {
     type: String,
