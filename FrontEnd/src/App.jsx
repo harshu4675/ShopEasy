@@ -61,6 +61,7 @@ const MyReturns = lazy(() => import("./pages/MyReturns"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const ReturnRequest = lazy(() => import("./pages/ReturnRequest"));
 const Account = lazy(() => import("./pages/Account"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 /* Public affiliate redirect (resolves and forwards to the external product). */
 const AffiliateRedirect = lazy(() => import("./pages/AffiliateRedirect"));
@@ -402,6 +403,8 @@ const AppLayout = () => {
                 </AdminRoute>
               }
             />
+
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>

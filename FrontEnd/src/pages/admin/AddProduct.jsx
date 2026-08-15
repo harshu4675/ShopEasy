@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, categoriesAPI } from "../../utils/api";
+import {
+  api,
+  categoriesAPI,
+  invalidateCache,
+  CACHE_KEYS,
+} from "../../utils/api";
 import { showToast } from "../../utils/toast";
 
 const matIcon = {
@@ -134,20 +139,69 @@ const AddProduct = () => {
   };
 
   const importAffiliateProduct = async () => {
-    if (!importUrl.trim()) return showToast("Paste a product or affiliate URL first", "error");
+    if (!importUrl.trim())
+      return showToast("Paste a product or affiliate URL first", "error");
     setImporting(true);
     try {
-      const { data } = await api.post("/products/import/preview", { url: importUrl.trim() });
+      const { data } = await api.post("/products/import/preview", {
+        url: importUrl.trim(),
+      });
       const product = data.product;
-      const category = categories.find((item) => item.name === product.category)?.name || "";
-      setFormData((current) => ({ ...current, name: product.title || current.name, description: product.description || current.description, price: product.price ?? current.price, originalPrice: product.originalPrice ?? current.originalPrice, brand: product.brand || current.brand, category: category || current.category, subCategory: product.subcategory || current.subCategory, sizes: product.sizes?.filter((size) => sizes.includes(size)) || current.sizes, colors: product.colors?.map((name) => ({ name, code: "#000000" })) || current.colors, stock: product.availability?.toLowerCase().includes("out") ? 0 : current.stock || 1, affiliateUrl: product.affiliateUrl, sourceUrl: product.sourceUrl, canonicalUrl: product.canonicalUrl, platform: product.platform, importMetadata: product.rawMetadata }));
+      const category =
+        categories.find((item) => item.name === product.category)?.name || "";
+      setFormData((current) => ({
+        ...current,
+        name: product.title || current.name,
+        description: product.description || current.description,
+        price: product.price ?? current.price,
+        originalPrice: product.originalPrice ?? current.originalPrice,
+        brand: product.brand || current.brand,
+        category: category || current.category,
+        subCategory: product.subcategory || current.subCategory,
+        sizes:
+          product.sizes?.filter((size) => sizes.includes(size)) ||
+          current.sizes,
+        colors:
+          product.colors?.map((name) => ({ name, code: "#000000" })) ||
+          current.colors,
+        stock: product.availability?.toLowerCase().includes("out")
+          ? 0
+          : current.stock || 1,
+        // Canonical origin fields make cart/checkout exclusion independent of
+        // product names while the legacy fields keep old admin screens working.
+        productType: "AFFILIATE",
+        affiliateUrl: product.affiliateUrl,
+        sourcePlatform: product.platform || "unknown",
+        originalUrl:
+          product.canonicalUrl || product.finalResolvedUrl || product.sourceUrl,
+        externalProductId:
+          product.productId || product.asin || product.sku || "",
+        sourceUrl: product.sourceUrl,
+        canonicalUrl: product.canonicalUrl,
+        platform: product.platform,
+        importMetadata: product.rawMetadata || {},
+      }));
       setImportedImageUrls(product.images || []);
       setImportResult(data);
-      showToast(data.reason === "PARTIAL_DATA" ? "Imported what was publicly available — review missing fields" : "Product imported for review", "success");
+      showToast(
+        data.reason === "PARTIAL_DATA"
+          ? "Imported what was publicly available — review missing fields"
+          : "Product imported for review",
+        "success",
+      );
     } catch (error) {
-      setImportResult(error.response?.data || { message: "Automatic extraction was not available." });
-      showToast(error.response?.data?.message || "Could not import this product", "error");
-    } finally { setImporting(false); }
+      setImportResult(
+        error.response?.data || {
+          message: "Automatic extraction was not available.",
+        },
+      );
+      showToast(
+        error.response?.data?.message || "Could not import this product",
+        "error",
+      );
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleImageChange = (e) => {
@@ -180,16 +234,23 @@ const AddProduct = () => {
               .filter((t) => t),
           ),
         );
-      } else {
-        data.append(key, formData[key]);
+      } else if (formData[key] !== undefined && formData[key] !== null) {
+        data.append(
+          key,
+          typeof formData[key] === "object"
+            ? JSON.stringify(formData[key])
+            : formData[key],
+        );
       }
     });
-    if (importedImageUrls.length && images.length === 0) data.append("imageUrls", JSON.stringify(importedImageUrls));
+    if (importedImageUrls.length && images.length === 0)
+      data.append("imageUrls", JSON.stringify(importedImageUrls));
     images.forEach((image) => data.append("images", image));
     try {
       await api.post("/products", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      invalidateCache(CACHE_KEYS.products);
       showToast("Product added successfully", "success");
       navigate("/admin/products");
     } catch (error) {
@@ -262,16 +323,91 @@ const AddProduct = () => {
             className="rounded-2xl bg-white p-8 shadow-sm max-md:p-5"
           >
             <div className="mb-8 rounded-xl border border-pink-100 bg-pink-50 p-5">
-              <h3 className="m-0 text-lg font-bold text-gray-900">Import affiliate product</h3>
-              <p className="mb-3 mt-1 text-sm text-gray-600">Paste an Amazon, Flipkart, Myntra, Ajio, Meesho, or public product URL. Your original affiliate link is preserved for Buy Now.</p>
+              <h3 className="m-0 text-lg font-bold text-gray-900">
+                Import affiliate product
+              </h3>
+              <p className="mb-3 mt-1 text-sm text-gray-600">
+                Paste an Amazon, Flipkart, Myntra, Ajio, Meesho, or public
+                product URL. Your original affiliate link is preserved for Buy
+                Now.
+              </p>
               <div className="flex gap-2 max-md:flex-col">
-                <input value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="https://..." className={inputClass} aria-label="Affiliate product URL" />
-                <button type="button" onClick={importAffiliateProduct} disabled={importing} className="rounded-lg border-none bg-pink-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{importing ? "Importing..." : "Import"}</button>
+                <input
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  placeholder="https://..."
+                  className={inputClass}
+                  aria-label="Affiliate product URL"
+                />
+                <button
+                  type="button"
+                  onClick={importAffiliateProduct}
+                  disabled={importing}
+                  aria-busy={importing}
+                  className="inline-flex min-w-28 items-center justify-center gap-2 rounded-lg border-none bg-pink-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  {importing && (
+                    <span
+                      aria-hidden="true"
+                      className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white"
+                      style={{ animation: "ap-spin 0.7s linear infinite" }}
+                    />
+                  )}
+                  {importing ? "Importing..." : "Import"}
+                </button>
               </div>
-              {importResult && <div className="mt-4 rounded-lg bg-white p-4 text-sm shadow-sm">
-                <div className="font-bold text-gray-900">{importResult.success ? "Product imported" : "Needs manual review"}</div>
-                {importResult.success ? <><div className="mt-2 text-gray-700">Import completeness <b>{importResult.product.importQuality.percentage}%</b> — {importResult.product.importQuality.detected} of {importResult.product.importQuality.total} key fields detected</div><div className="mt-2 flex flex-wrap gap-2">{["Title", "Description", "Images", "Price", "Brand", "Category", "Rating", "Variants"].map((label) => <span key={label} className="rounded-full bg-gray-100 px-2 py-1 text-xs">{label}</span>)}</div>{importResult.product.importQuality.missing.length > 0 && <p className="mb-0 mt-2 text-amber-700">Needs review: {importResult.product.importQuality.missing.join(", ")}</p>}</> : <p className="mb-0 mt-2 text-amber-700">{importResult.message}</p>}
-              </div>}
+              {importResult && (
+                <div className="mt-4 rounded-lg bg-white p-4 text-sm shadow-sm">
+                  <div className="font-bold text-gray-900">
+                    {importResult.success
+                      ? "Product imported"
+                      : "Needs manual review"}
+                  </div>
+                  {importResult.success ? (
+                    <>
+                      <div className="mt-2 text-gray-700">
+                        Import completeness{" "}
+                        <b>{importResult.product.importQuality.percentage}%</b>{" "}
+                        — {importResult.product.importQuality.detected} of{" "}
+                        {importResult.product.importQuality.total} key fields
+                        detected
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[
+                          "Title",
+                          "Description",
+                          "Images",
+                          "Price",
+                          "Brand",
+                          "Category",
+                          "Rating",
+                          "Variants",
+                        ].map((label) => (
+                          <span
+                            key={label}
+                            className="rounded-full bg-gray-100 px-2 py-1 text-xs"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                      {importResult.product.importQuality.missing.length >
+                        0 && (
+                        <p className="mb-0 mt-2 text-amber-700">
+                          Needs review:{" "}
+                          {importResult.product.importQuality.missing.join(
+                            ", ",
+                          )}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="mb-0 mt-2 text-amber-700">
+                      {importResult.message}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="mb-8 border-b border-gray-100 pb-8">
               <h3 className="mb-5 flex items-center gap-2 text-lg font-bold text-gray-900">
@@ -573,7 +709,28 @@ const AddProduct = () => {
                 />
               </label>
               {importedImageUrls.length > 0 && images.length === 0 && (
-                <div className="mt-4 flex flex-wrap gap-3">{importedImageUrls.slice(0, 5).map((url, index) => <div key={url} className="relative h-[120px] w-[100px] overflow-hidden rounded-lg bg-gray-100 shadow-sm"><img src={url} alt={`Imported product ${index + 1}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.display = "none"; }} />{index === 0 && <span className="absolute bottom-0 left-0 right-0 bg-pink-600 py-1 text-center text-[10px] font-bold text-white">Main</span>}</div>)}</div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {importedImageUrls.slice(0, 5).map((url, index) => (
+                    <div
+                      key={url}
+                      className="relative h-[120px] w-[100px] overflow-hidden rounded-lg bg-gray-100 shadow-sm"
+                    >
+                      <img
+                        src={url}
+                        alt={`Imported product ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                      {index === 0 && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-pink-600 py-1 text-center text-[10px] font-bold text-white">
+                          Main
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
               {images.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-3">

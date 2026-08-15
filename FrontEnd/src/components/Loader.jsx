@@ -1,6 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 
 const Loader = ({ size = "default", fullScreen = false }) => {
+  const gradientId = `loader-ring-${useId().replace(/:/g, "")}`;
+
   useEffect(() => {
     const fontId = "loader-tc-fonts";
     if (!document.getElementById(fontId)) {
@@ -17,6 +19,10 @@ const Loader = ({ size = "default", fullScreen = false }) => {
     return (
       <div
         className="fixed inset-0 z-[9999] flex items-center justify-center"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        aria-label="Loading"
         style={{
           background:
             "linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%)",
@@ -30,11 +36,12 @@ const Loader = ({ size = "default", fullScreen = false }) => {
             <svg
               className="absolute inset-0 h-full w-full"
               viewBox="0 0 100 100"
+              aria-hidden="true"
               style={{ animation: "tc-rotate 1.5s linear infinite" }}
             >
               <defs>
                 <linearGradient
-                  id="tc-ring"
+                  id={`${gradientId}-full`}
                   x1="0%"
                   y1="0%"
                   x2="100%"
@@ -57,7 +64,7 @@ const Loader = ({ size = "default", fullScreen = false }) => {
                 cy="50"
                 r="46"
                 fill="none"
-                stroke="url(#tc-ring)"
+                stroke={`url(#${gradientId}-full)`}
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeDasharray="90 290"
@@ -114,7 +121,13 @@ const Loader = ({ size = "default", fullScreen = false }) => {
   const boxSize = smallSize ? 40 : 56;
 
   return (
-    <div className="flex items-center justify-center py-10">
+    <div
+      className="flex items-center justify-center py-10"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading"
+    >
       <div
         className="relative flex items-center justify-center"
         style={{ width: boxSize, height: boxSize }}
@@ -122,11 +135,12 @@ const Loader = ({ size = "default", fullScreen = false }) => {
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox={`0 0 ${boxSize} ${boxSize}`}
+          aria-hidden="true"
           style={{ animation: "tc-mini-rotate 1.2s linear infinite" }}
         >
           <defs>
             <linearGradient
-              id="tc-mini-ring"
+              id={`${gradientId}-mini`}
               x1="0%"
               y1="0%"
               x2="100%"
@@ -149,7 +163,7 @@ const Loader = ({ size = "default", fullScreen = false }) => {
             cy={boxSize / 2}
             r={boxSize / 2 - 3}
             fill="none"
-            stroke="url(#tc-mini-ring)"
+            stroke={`url(#${gradientId}-mini)`}
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeDasharray={`${(boxSize - 6) * 1.2} ${(boxSize - 6) * 3.14}`}

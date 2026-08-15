@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { api, formatPrice } from "../../utils/api";
+import { api, formatPrice, invalidateCache, CACHE_KEYS } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import { matIcon } from "../../utils/fonts";
 import Loader from "../../components/Loader";
@@ -57,15 +57,13 @@ const AffiliateProducts = () => {
       setProducts((prev) =>
         prev.map((p) => (p._id === id ? { ...p, ...data.product } : p)),
       );
+      invalidateCache(CACHE_KEYS.products);
       showToast(
         action === "publish" ? "Product published" : "Product unpublished",
         "success",
       );
     } catch (error) {
-      showToast(
-        error.response?.data?.message || "Update failed",
-        "error",
-      );
+      showToast(error.response?.data?.message || "Update failed", "error");
     } finally {
       setBusy(null);
     }
@@ -78,12 +76,10 @@ const AffiliateProducts = () => {
       setProducts((prev) =>
         prev.map((p) => (p._id === id ? { ...p, ...data.product } : p)),
       );
+      invalidateCache(CACHE_KEYS.products);
       showToast("Product data refreshed", "success");
     } catch (error) {
-      showToast(
-        error.response?.data?.message || "Re-import failed",
-        "error",
-      );
+      showToast(error.response?.data?.message || "Re-import failed", "error");
       fetchProducts();
     } finally {
       setBusy(null);
@@ -91,12 +87,15 @@ const AffiliateProducts = () => {
   };
 
   const remove = async (id) => {
-    if (!window.confirm("Delete this affiliate product? This cannot be undone."))
+    if (
+      !window.confirm("Delete this affiliate product? This cannot be undone.")
+    )
       return;
     setBusy(id);
     try {
       await api.delete(`/admin/affiliate/${id}`);
       setProducts((prev) => prev.filter((p) => p._id !== id));
+      invalidateCache(CACHE_KEYS.products);
       showToast("Product deleted", "success");
     } catch (error) {
       showToast(error.response?.data?.message || "Delete failed", "error");
@@ -129,7 +128,7 @@ const AffiliateProducts = () => {
         {/* Header */}
         <div className="mb-[26px] flex flex-wrap items-center justify-between gap-5">
           <div>
-            <h1 className="m-0 text-[26px] font-bold text-gray-900 md:text-[22px]">
+            <h1 className="m-0 text-[26px] font-bold text-gray-900 max-md:text-[22px]">
               Affiliate Products ({products.length})
             </h1>
             <p className="m-0 mt-1 text-[13px] text-gray-500">
@@ -153,7 +152,7 @@ const AffiliateProducts = () => {
         </div>
 
         {/* Search + filters */}
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow-sm md:flex-col md:items-stretch">
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow-sm max-md:flex-col max-md:items-stretch">
           <div className="relative min-w-[260px] flex-1">
             <span
               style={matIcon}
@@ -206,7 +205,9 @@ const AffiliateProducts = () => {
             <Link
               to="/admin/affiliate/new"
               className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white no-underline"
-              style={{ background: "linear-gradient(135deg, #e91e63, #9c27b0)" }}
+              style={{
+                background: "linear-gradient(135deg, #e91e63, #9c27b0)",
+              }}
             >
               <span style={matIcon} className="text-[18px]">
                 add_link
@@ -217,8 +218,8 @@ const AffiliateProducts = () => {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="block overflow-hidden rounded-xl bg-white shadow-sm md:!hidden lg:overflow-x-auto">
-              <table className="w-full border-collapse lg:min-w-[900px]">
+            <div className="hidden overflow-x-auto rounded-xl bg-white shadow-sm md:block">
+              <table className="w-full min-w-[900px] border-collapse">
                 <thead>
                   <tr>
                     {[
@@ -255,10 +256,13 @@ const AffiliateProducts = () => {
                         <p className="m-0 mb-1 truncate text-sm font-semibold text-gray-800">
                           {p.name}
                         </p>
-                        <p className="m-0 text-[13px] text-gray-500">{p.brand}</p>
+                        <p className="m-0 text-[13px] text-gray-500">
+                          {p.brand}
+                        </p>
                         {p.importStatus === "error" && (
                           <p className="m-0 mt-1 truncate text-[12px] font-semibold text-red-600">
-                            {p.importError || "Import failed — review and complete manually."}
+                            {p.importError ||
+                              "Import failed — review and complete manually."}
                           </p>
                         )}
                         {p.importStatus === "partial" && (
@@ -346,7 +350,7 @@ const AffiliateProducts = () => {
             </div>
 
             {/* Mobile cards */}
-            <div className="hidden gap-4 pb-20 md:!grid md:grid-cols-1">
+            <div className="grid grid-cols-1 gap-4 pb-20 md:hidden">
               {filtered.map((p) => (
                 <div
                   key={p._id}
@@ -384,7 +388,8 @@ const AffiliateProducts = () => {
                   </div>
                   {p.importStatus === "error" && (
                     <p className="m-0 mb-2 rounded-md bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600">
-                      {p.importError || "Import failed — review and complete manually."}
+                      {p.importError ||
+                        "Import failed — review and complete manually."}
                     </p>
                   )}
                   {p.importStatus === "partial" && (
@@ -403,7 +408,12 @@ const AffiliateProducts = () => {
                       Edit
                     </Link>
                     <button
-                      onClick={() => patch(p._id, p.status === "published" ? "unpublish" : "publish")}
+                      onClick={() =>
+                        patch(
+                          p._id,
+                          p.status === "published" ? "unpublish" : "publish",
+                        )
+                      }
                       disabled={busy === p._id}
                       className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md px-4 py-3 text-sm font-semibold text-gray-800 disabled:opacity-60"
                       style={{ background: "#f3f4f6" }}

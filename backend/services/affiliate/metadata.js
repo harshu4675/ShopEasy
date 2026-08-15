@@ -14,13 +14,17 @@
  * comes back as empty, never fabricated.
  */
 
+const { rankImageCandidates } = require("../imageRanking");
+
 /* ------------------------------- helpers -------------------------------- */
 
 function decodeEntities(text) {
   if (typeof text !== "string") return "";
   return text
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) =>
+      String.fromCodePoint(parseInt(h, 16)),
+    )
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
@@ -73,10 +77,7 @@ function parsePrice(value) {
     const lastComma = m.lastIndexOf(",");
     const decimalSep = lastDot > lastComma ? "." : ",";
     const thousandSep = decimalSep === "." ? "," : ".";
-    normalized = m
-      .split(thousandSep)
-      .join("")
-      .replace(decimalSep, ".");
+    normalized = m.split(thousandSep).join("").replace(decimalSep, ".");
   } else if (m.includes(",")) {
     const parts = m.split(",");
     // "49,99" (exactly one comma, two trailing digits) → decimal; else thousands.
@@ -101,7 +102,9 @@ function parseMetaTags(html) {
   let tag;
   while ((tag = re.exec(html)) !== null) {
     const name =
-      attr(tag[0], "name") || attr(tag[0], "property") || attr(tag[0], "itemprop");
+      attr(tag[0], "name") ||
+      attr(tag[0], "property") ||
+      attr(tag[0], "itemprop");
     const content = cleanText(attr(tag[0], "content"));
     if (name) metas.push({ key: name.toLowerCase(), content });
   }
@@ -159,24 +162,31 @@ function collectProducts(node, out) {
   if (node.mainEntity) collectProducts(node.mainEntity, out);
 }
 
-function imageUrls(image) {
+function imageCandidates(image, source = "json-ld") {
   if (!image) return [];
-  if (typeof image === "string") return [image];
+  if (typeof image === "string") return [{ url: image, source }];
   if (Array.isArray(image)) {
-    return image
-      .flatMap((i) =>
-        typeof i === "string"
-          ? [i]
-          : i && typeof i === "object"
-            ? imageUrls(i.url || i.contentUrl || i["@id"])
-            : [],
-      )
-      .filter(isHttpUrl);
+    return image.flatMap((item) => imageCandidates(item, source));
   }
   if (typeof image === "object") {
-    return imageUrls(image.url || image.contentUrl || image["@id"]);
+    const url = image.url || image.contentUrl || image["@id"];
+    return url
+      ? [
+          {
+            url,
+            source,
+            width: image.width?.value || image.width,
+            height: image.height?.value || image.height,
+            semantic: image.representativeOfPage ? "original" : "",
+          },
+        ]
+      : [];
   }
   return [];
+}
+
+function imageUrls(image) {
+  return imageCandidates(image).map(({ url }) => url);
 }
 
 function brandName(brand) {
@@ -236,9 +246,12 @@ function productFromJsonLd(node) {
     title: cleanText(node.name),
     description: cleanText(node.description),
     images: imageUrls(node.image),
+    imageCandidates: imageCandidates(node.image),
     sku: cleanText(node.sku),
     productID: cleanText(node.productID),
-    gtin: cleanText(node.gtin13 || node.gtin12 || node.gtin14 || node.gtin8 || node.gtin),
+    gtin: cleanText(
+      node.gtin13 || node.gtin12 || node.gtin14 || node.gtin8 || node.gtin,
+    ),
     mpn: cleanText(node.mpn),
     category: cleanText(node.category),
     brand: brandName(node.brand),
@@ -269,15 +282,19 @@ function productFromJsonLd(node) {
     out.offerUrl = offer.url;
   }
 
-  const props = Array.isArray(node.additionalProperty) ? node.additionalProperty : [];
+  const props = Array.isArray(node.additionalProperty)
+    ? node.additionalProperty
+    : [];
   for (const p of props) {
     const name = cleanText(p && p.name);
     const value = cleanText(p && p.value);
     if (/size/i.test(name)) out.variants.push({ name: "Size", value });
     if (/color|colour/i.test(name)) out.variants.push({ name: "Color", value });
   }
-  if (node.color) out.variants.push({ name: "Color", value: cleanText(node.color) });
-  if (node.size) out.variants.push({ name: "Size", value: cleanText(node.size) });
+  if (node.color)
+    out.variants.push({ name: "Color", value: cleanText(node.color) });
+  if (node.size)
+    out.variants.push({ name: "Size", value: cleanText(node.size) });
 
   return out;
 }
@@ -308,7 +325,9 @@ function extractFromHtml(html, sourceUrl) {
 
   const ogTitle = metaValue(metas, "og:title");
   const ogDescription = metaValue(metas, "og:description");
-  const ogImages = metaValues(metas, "og:image").filter(isHttpUrl);
+  const ogImages = metaValues(metas, "og:image");
+  const ogImageWidth = metaValue(metas, "og:image:width");
+  const ogImageHeight = metaValue(metas, "og:image:height");
   const ogUrl = metaValue(metas, "og:url");
   const ogSiteName = metaValue(metas, "og:site_name");
 
@@ -317,7 +336,7 @@ function extractFromHtml(html, sourceUrl) {
   const twitterImages = [
     metaValue(metas, "twitter:image"),
     metaValue(metas, "twitter:image:src"),
-  ].filter(isHttpUrl);
+  ].filter(Boolean);
 
   const metaDescription = metaValue(metas, "description");
   const metaKeywords = metaValue(metas, "keywords");
@@ -329,7 +348,11 @@ function extractFromHtml(html, sourceUrl) {
   const safeCanonical = isHttpUrl(canonicalUrl) ? canonicalUrl : "";
 
   const title =
-    (ld && ld.title) || ogTitle || twitterTitle || cleanText(titleTag && titleTag[1]) || "";
+    (ld && ld.title) ||
+    ogTitle ||
+    twitterTitle ||
+    cleanText(titleTag && titleTag[1]) ||
+    "";
   const description =
     (ld && ld.description) ||
     ogDescription ||
@@ -337,23 +360,30 @@ function extractFromHtml(html, sourceUrl) {
     metaDescription ||
     "";
 
-  const images = [];
-  const seen = new Set();
-  const push = (list) =>
-    list.forEach((i) => {
-      const u = cleanText(i);
-      if (isHttpUrl(u) && !seen.has(u)) {
-        seen.add(u);
-        images.push(u);
-      }
-    });
-  push((ld && ld.images) || []);
-  push(ogImages);
-  push(twitterImages);
+  const images = rankImageCandidates(
+    [
+      ...((ld && ld.imageCandidates) || []),
+      ...ogImages.map((url, index) => ({
+        url: cleanText(url),
+        source: "open-graph",
+        // OpenGraph dimensions describe the primary image. Do not incorrectly
+        // apply them to additional `og:image` entries.
+        width: index === 0 ? ogImageWidth : undefined,
+        height: index === 0 ? ogImageHeight : undefined,
+      })),
+      ...twitterImages.map((url) => ({
+        url: cleanText(url),
+        source: "twitter",
+      })),
+    ],
+    { baseUrl: sourceUrl, limit: 12 },
+  );
 
   const price = (ld && ld.price) ?? parsePrice(productPrice) ?? null;
   const originalPrice =
-    (ld && ld.originalPrice) ?? parsePrice(metaValue(metas, "product:original_price:amount")) ?? null;
+    (ld && ld.originalPrice) ??
+    parsePrice(metaValue(metas, "product:original_price:amount")) ??
+    null;
   const priceCurrency = (ld && ld.priceCurrency) || productCurrency || "";
 
   const rating = (ld && ld.rating) || 0;

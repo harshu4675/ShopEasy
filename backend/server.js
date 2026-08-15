@@ -129,18 +129,7 @@ app.use("/api", (req, res, next) => {
 /* -------------------------------------------------------------------------- *
  * Static caching hints
  * -------------------------------------------------------------------------- */
-app.use((req, res, next) => {
-  // Product/banner reads are safe to cache briefly at the CDN edge; everything
-  // authenticated stays private.
-  if (
-    req.method === "GET" &&
-    /^\/api\/(products|categories|banners|trending)/.test(req.path) &&
-    !req.headers.authorization
-  ) {
-    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  }
-  next();
-});
+app.use(require("./middleware/cacheControl"));
 
 /* -------------------------------------------------------------------------- *
  * Rate limiting

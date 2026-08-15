@@ -4,12 +4,16 @@ const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 const Coupon = require("../models/Coupon");
 const auth = require("../middleware/auth");
+const { isAffiliateProduct } = require("../utils/productOrigin");
 
 const cleanCart = async (cart) => {
   const validItems = [];
 
   for (const item of cart.items) {
-    if (item.product) {
+    // Legacy imports could have reached carts before affiliate origin was
+    // canonicalized. Remove both missing and external products so an old cart
+    // cannot remain permanently blocked at checkout.
+    if (item.product && !isAffiliateProduct(item.product)) {
       validItems.push(item);
     }
   }
@@ -52,7 +56,7 @@ router.post("/add", auth, async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    if (product.productType === "AFFILIATE") {
+    if (isAffiliateProduct(product)) {
       return res.status(400).json({
         message:
           "This product is sold by a partner. Use Buy Now to be redirected to the partner store.",

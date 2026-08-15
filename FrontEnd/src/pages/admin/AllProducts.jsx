@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { api, formatPrice } from "../../utils/api";
+import { api, formatPrice, invalidateCache, CACHE_KEYS } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import Loader from "../../components/Loader";
 import { matIcon } from "../../utils/fonts";
@@ -30,7 +30,8 @@ const AllProducts = () => {
       return;
     try {
       await api.delete(`/products/${id}`);
-      setProducts(products.filter((p) => p._id !== id));
+      setProducts((current) => current.filter((product) => product._id !== id));
+      invalidateCache(CACHE_KEYS.products);
       showToast("Product deleted successfully", "success");
     } catch {
       showToast("Error deleting product", "error");
@@ -50,20 +51,22 @@ const AllProducts = () => {
     <div className="min-h-screen">
       <div className="max-w-[1400px] mx-auto px-5 md:px-4">
         {/* Page Header */}
-        <div className="flex justify-between items-center mb-[30px] flex-wrap gap-5 md:flex-col md:!items-stretch md:gap-3">
-          <h1 className="text-[28px] font-bold text-dark md:text-[22px]">
+        <div className="flex flex-wrap items-center justify-between gap-5 mb-[30px] max-md:flex-col max-md:!items-stretch max-md:gap-3">
+          <h1 className="text-[28px] font-bold text-dark max-md:text-[22px]">
             All Products ({products.length})
           </h1>
           <Link
             to="/admin/add-product"
-            className="inline-flex items-center justify-center gap-2 py-3.5 px-7 border-none rounded-md cursor-pointer font-[inherit] text-[15px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover md:hidden"
+            className="inline-flex items-center justify-center gap-2 py-3.5 px-7 border-none rounded-md cursor-pointer font-[inherit] text-[15px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover max-md:hidden"
           >
-            <span><span style={matIcon}>add</span></span>
+            <span>
+              <span style={matIcon}>add</span>
+            </span>
             <span>Add Product</span>
           </Link>
           <Link
             to="/admin/import-product"
-            className="inline-flex items-center justify-center gap-2 py-3.5 px-7 border-none rounded-md cursor-pointer font-[inherit] text-[15px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover md:hidden"
+            className="inline-flex items-center justify-center gap-2 py-3.5 px-7 border-none rounded-md cursor-pointer font-[inherit] text-[15px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover max-md:hidden"
           >
             <span><span style={matIcon}>download</span></span>
             <span>Import</span>
@@ -71,13 +74,13 @@ const AllProducts = () => {
         </div>
 
         {/* Search */}
-        <div className="bg-white p-5 rounded-md mb-6 shadow-sm md:p-3">
+        <div className="mb-6 rounded-md bg-white p-5 shadow-sm max-md:p-3">
           <input
             type="text"
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full max-w-[400px] py-3.5 px-5 border-2 border-gray-200 rounded-md text-[15px] transition-all duration-300 ease-custom focus:outline-none focus-ring-primary md:max-w-full md:py-3 md:px-4 md:text-base"
+            className="w-full max-w-[400px] py-3.5 px-5 border-2 border-gray-200 rounded-md text-[15px] transition-all duration-300 ease-custom focus:outline-none focus-ring-primary max-md:max-w-full max-md:px-4 max-md:py-3 max-md:text-base"
           />
         </div>
 
@@ -93,8 +96,8 @@ const AllProducts = () => {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="block md:!hidden bg-white rounded-md shadow-sm overflow-hidden lg:overflow-x-auto">
-              <table className="w-full border-collapse lg:min-w-[800px]">
+            <div className="hidden overflow-x-auto rounded-md bg-white shadow-sm md:block">
+              <table className="w-full min-w-[800px] border-collapse">
                 <thead>
                   <tr>
                     {[
@@ -169,7 +172,13 @@ const AllProducts = () => {
                         </span>
                       </td>
                       <td className="py-4 px-5 border-b border-gray-200 text-sm text-gray-600">
-                        <span style={matIcon} className="mr-1 align-middle text-[16px]">star</span>{product.rating?.toFixed(1) || "0.0"} (
+                        <span
+                          style={matIcon}
+                          className="mr-1 align-middle text-[16px]"
+                        >
+                          star
+                        </span>
+                        {product.rating?.toFixed(1) || "0.0"} (
                         {product.numReviews || 0})
                       </td>
                       <td className="py-4 px-5 border-b border-gray-200">
@@ -178,13 +187,25 @@ const AllProducts = () => {
                             to={`/admin/edit-product/${product._id}`}
                             className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-2 border-gray-300 bg-white text-gray-800 rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap hover:border-primary hover:text-primary lg:text-xs lg:py-2 lg:px-3"
                           >
-                            <span style={matIcon} className="mr-1 align-middle text-[16px]">edit</span>Edit
+                            <span
+                              style={matIcon}
+                              className="mr-1 align-middle text-[16px]"
+                            >
+                              edit
+                            </span>
+                            Edit
                           </Link>
                           <button
                             onClick={() => deleteProduct(product._id)}
                             className="inline-flex items-center justify-center gap-2 py-2.5 px-[18px] border-none rounded-md cursor-pointer font-[inherit] text-[13px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-error text-white hover:bg-[#d32f2f] hover:-translate-y-0.5 lg:text-xs lg:py-2 lg:px-3"
                           >
-                            <span style={matIcon} className="mr-1 align-middle text-[16px]">delete</span>Delete
+                            <span
+                              style={matIcon}
+                              className="mr-1 align-middle text-[16px]"
+                            >
+                              delete
+                            </span>
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -195,7 +216,7 @@ const AllProducts = () => {
             </div>
 
             {/* Mobile Cards */}
-            <div className="hidden md:!grid grid-cols-1 gap-4 pb-20">
+            <div className="grid grid-cols-1 gap-4 pb-20 md:hidden">
               {filteredProducts.map((product) => (
                 <div
                   key={product._id}
@@ -254,7 +275,13 @@ const AllProducts = () => {
                         Rating:
                       </span>
                       <span className="text-[13px] text-gray-600">
-                        <span style={matIcon} className="mr-1 align-middle text-[16px]">star</span>{product.rating?.toFixed(1) || "0.0"} (
+                        <span
+                          style={matIcon}
+                          className="mr-1 align-middle text-[16px]"
+                        >
+                          star
+                        </span>
+                        {product.rating?.toFixed(1) || "0.0"} (
                         {product.numReviews || 0})
                       </span>
                     </div>
@@ -265,13 +292,25 @@ const AllProducts = () => {
                       to={`/admin/edit-product/${product._id}`}
                       className="flex-1 flex items-center justify-center gap-1.5 py-3 px-4 text-sm font-semibold rounded-sm border-none cursor-pointer transition-all duration-300 ease-custom min-h-[44px] bg-primary text-white hover:bg-primary-dark sm:py-2.5 sm:px-3 sm:text-[13px]"
                     >
-                      <span style={matIcon} className="mr-1 align-middle text-[16px]">edit</span>Edit
+                      <span
+                        style={matIcon}
+                        className="mr-1 align-middle text-[16px]"
+                      >
+                        edit
+                      </span>
+                      Edit
                     </Link>
                     <button
                       onClick={() => deleteProduct(product._id)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-3 px-4 text-sm font-semibold rounded-sm border-none cursor-pointer transition-all duration-300 ease-custom min-h-[44px] bg-[#fee2e2] text-[#dc2626] hover:bg-[#fecaca] sm:py-2.5 sm:px-3 sm:text-[13px]"
                     >
-                      <span style={matIcon} className="mr-1 align-middle text-[16px]">delete</span>Delete
+                      <span
+                        style={matIcon}
+                        className="mr-1 align-middle text-[16px]"
+                      >
+                        delete
+                      </span>
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -281,20 +320,24 @@ const AllProducts = () => {
         )}
 
         {/* Mobile FABs */}
-        <div className="hidden md:!flex fixed bottom-20 right-5 z-[1000] gap-3">
+        <div className="fixed bottom-20 right-5 z-[1000] flex gap-3 md:hidden">
           <Link
             to="/admin/import-product"
             className="w-14 h-14 rounded-full bg-[#be185d] text-white border-none shadow-[0_4px_12px_rgba(0,0,0,0.3)] flex items-center justify-center text-2xl cursor-pointer transition-all duration-200 no-underline hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
             title="Import Product"
           >
-            <span style={matIcon} className="align-middle text-[16px]">download</span>
+            <span style={matIcon} className="align-middle text-[16px]">
+              download
+            </span>
           </Link>
           <Link
             to="/admin/add-product"
             className="w-14 h-14 rounded-full bg-primary text-white border-none shadow-[0_4px_12px_rgba(0,0,0,0.3)] flex items-center justify-center text-2xl cursor-pointer transition-all duration-200 no-underline hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
             title="Add Product"
           >
-            <span style={matIcon} className="align-middle text-[16px]">add</span>
+            <span style={matIcon} className="align-middle text-[16px]">
+              add
+            </span>
           </Link>
         </div>
       </div>

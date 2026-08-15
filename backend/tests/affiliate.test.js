@@ -15,7 +15,11 @@ const assert = require("node:assert/strict");
 
 const { ImportError, CODES } = require("../services/affiliate/errors");
 const affiliateService = require("../services/affiliateService");
-const { extractFromHtml, parsePrice, decodeEntities } = require("../services/affiliate/metadata");
+const {
+  extractFromHtml,
+  parsePrice,
+  decodeEntities,
+} = require("../services/affiliate/metadata");
 const { detectProvider, isSafeRedirectUrl } = require("../services/affiliate");
 const amazon = require("../services/affiliate/amazon");
 const flipkart = require("../services/affiliate/flipkart");
@@ -40,18 +44,35 @@ test("inspectUrl rejects a non-URL string", () => {
 });
 
 test("inspectUrl does NOT reject an unknown marketplace", () => {
-  const { provider } = affiliateService.inspectUrl("https://example.com/product/123");
+  const { provider } = affiliateService.inspectUrl(
+    "https://example.com/product/123",
+  );
   assert.equal(provider, null);
 });
 
 /* ----------------------------- Provider detection ------------------------ */
 
 test("detectProvider recognises every supported marketplace", () => {
-  assert.equal(detectProvider("https://www.amazon.in/dp/B08N5WRWNW").id, "amazon");
-  assert.equal(detectProvider("https://www.flipkart.com/x/p/itm123?pid=SHOE1").id, "flipkart");
-  assert.equal(detectProvider("https://www.myntra.com/kurtas/xyz/12345678/buy").id, "myntra");
-  assert.equal(detectProvider("https://www.ajio.com/x/y/p/12345678").id, "ajio");
-  assert.equal(detectProvider("https://www.meesho.com/x/p/abc123").id, "meesho");
+  assert.equal(
+    detectProvider("https://www.amazon.in/dp/B08N5WRWNW").id,
+    "amazon",
+  );
+  assert.equal(
+    detectProvider("https://www.flipkart.com/x/p/itm123?pid=SHOE1").id,
+    "flipkart",
+  );
+  assert.equal(
+    detectProvider("https://www.myntra.com/kurtas/xyz/12345678/buy").id,
+    "myntra",
+  );
+  assert.equal(
+    detectProvider("https://www.ajio.com/x/y/p/12345678").id,
+    "ajio",
+  );
+  assert.equal(
+    detectProvider("https://www.meesho.com/x/p/abc123").id,
+    "meesho",
+  );
   assert.equal(detectProvider("https://some-random-shop.example/p/1"), null);
 });
 
@@ -63,12 +84,32 @@ test("amazon.supports accepts marketplaces and rejects others", () => {
 });
 
 test("product-id extraction", () => {
-  assert.equal(amazon.extractProductId("https://www.amazon.in/dp/B08N5WRWNW"), "B08N5WRWNW");
-  assert.equal(amazon.extractProductId("https://www.amazon.com/gp/product/B08N5WRWNW"), "B08N5WRWNW");
-  assert.equal(flipkart.extractProductId("https://www.flipkart.com/x/p/itm123?pid=SHOE123"), "SHOE123");
-  assert.equal(myntra.extractProductId("https://www.myntra.com/kurtas/xyz/12345678/buy"), "12345678");
-  assert.equal(ajio.extractProductId("https://www.ajio.com/a/b/p/12345678"), "12345678");
-  assert.equal(meesho.extractProductId("https://www.meesho.com/x/p/ABC123"), "ABC123");
+  assert.equal(
+    amazon.extractProductId("https://www.amazon.in/dp/B08N5WRWNW"),
+    "B08N5WRWNW",
+  );
+  assert.equal(
+    amazon.extractProductId("https://www.amazon.com/gp/product/B08N5WRWNW"),
+    "B08N5WRWNW",
+  );
+  assert.equal(
+    flipkart.extractProductId(
+      "https://www.flipkart.com/x/p/itm123?pid=SHOE123",
+    ),
+    "SHOE123",
+  );
+  assert.equal(
+    myntra.extractProductId("https://www.myntra.com/kurtas/xyz/12345678/buy"),
+    "12345678",
+  );
+  assert.equal(
+    ajio.extractProductId("https://www.ajio.com/a/b/p/12345678"),
+    "12345678",
+  );
+  assert.equal(
+    meesho.extractProductId("https://www.meesho.com/x/p/ABC123"),
+    "ABC123",
+  );
 });
 
 /* ----------------------------- Metadata parsing -------------------------- */
@@ -86,7 +127,10 @@ const SAMPLE_HTML = `<!doctype html><html><head>
 </head><body></body></html>`;
 
 test("extractFromHtml reads JSON-LD Product data", () => {
-  const meta = extractFromHtml(SAMPLE_HTML, "https://www.amazon.in/dp/B08N5WRWNW");
+  const meta = extractFromHtml(
+    SAMPLE_HTML,
+    "https://www.amazon.in/dp/B08N5WRWNW",
+  );
   assert.equal(meta.title, "Nike Air Max Running Shoes");
   assert.equal(meta.description, "Comfortable running shoes for men");
   assert.equal(meta.images.length, 2);
@@ -113,6 +157,24 @@ test("extractFromHtml falls back to OpenGraph when JSON-LD is absent", () => {
   assert.equal(meta.price, 1499);
 });
 
+test("extractFromHtml ranks image evidence instead of taking the first URL", () => {
+  const html = `<!doctype html><html><head>
+  <meta property="og:title" content="Quality test" />
+  <meta property="og:image" content="/images/product-master.jpg" />
+  <meta property="og:image:width" content="1600" />
+  <meta property="og:image:height" content="1200" />
+  <script type="application/ld+json">
+  {"@type":"Product","name":"Quality test","image":{"@type":"ImageObject","url":"https://cdn.example/product-thumb.jpg","width":150,"height":150}}
+  </script>
+  </head><body></body></html>`;
+  const meta = extractFromHtml(html, "https://shop.example/p/1");
+  assert.equal(
+    meta.images[0],
+    "https://shop.example/images/product-master.jpg",
+  );
+  assert.equal(meta.images[1], "https://cdn.example/product-thumb.jpg");
+});
+
 test("parsePrice handles Indian and western formats", () => {
   assert.equal(parsePrice("₹1,299"), 1299);
   assert.equal(parsePrice("$49.99"), 49.99);
@@ -123,12 +185,18 @@ test("parsePrice handles Indian and western formats", () => {
 });
 
 test("decodeEntities decodes common HTML entities", () => {
-  assert.equal(decodeEntities("Men&#39;s &amp; Women&#8217;s"), "Men's & Women\u2019s");
+  assert.equal(
+    decodeEntities("Men&#39;s &amp; Women&#8217;s"),
+    "Men's & Women\u2019s",
+  );
 });
 
 /* --------------------------- Import orchestration ------------------------ */
 
-const okFetch = (html) => async () => ({ html, finalUrl: "https://www.amazon.in/dp/B08N5WRWNW" });
+const okFetch = (html) => async () => ({
+  html,
+  finalUrl: "https://www.amazon.in/dp/B08N5WRWNW",
+});
 const failingFetch = () => {
   throw new ImportError(
     CODES.BLOCKED,
@@ -144,7 +212,10 @@ test("importFromUrl preserves the pasted affiliate URL exactly", async () => {
   });
 
   assert.equal(outcome.product.affiliateUrl, url); // tracking params preserved
-  assert.equal(outcome.product.originalUrl, "https://www.amazon.in/dp/B08N5WRWNW");
+  assert.equal(
+    outcome.product.originalUrl,
+    "https://www.amazon.in/dp/B08N5WRWNW",
+  );
   assert.equal(outcome.product.sourcePlatform, "amazon");
   assert.equal(outcome.product.externalProductId, "B08N5WRWNW");
   assert.equal(outcome.product.price, 2999);
@@ -167,10 +238,14 @@ test("importFromUrl handles an unknown marketplace via the generic provider", as
 });
 
 test("importFromUrl does not fabricate data and flags missing fields", async () => {
-  const bareHtml = "<!doctype html><html><head><title>Page</title></head><body></body></html>";
-  const outcome = await affiliateService.importFromUrl("https://www.amazon.in/dp/B08N5WRWNW", {
-    fetchPage: okFetch(bareHtml),
-  });
+  const bareHtml =
+    "<!doctype html><html><head><title>Page</title></head><body></body></html>";
+  const outcome = await affiliateService.importFromUrl(
+    "https://www.amazon.in/dp/B08N5WRWNW",
+    {
+      fetchPage: okFetch(bareHtml),
+    },
+  );
   assert.equal(outcome.product.price, null);
   assert.equal(outcome.product.title, "Page"); // the <title> tag is real metadata
   assert.equal(outcome.product.description, "");
@@ -178,18 +253,26 @@ test("importFromUrl does not fabricate data and flags missing fields", async () 
   assert.ok(outcome.missing.includes("image"));
   assert.ok(outcome.missing.includes("price"));
   assert.ok(
-    outcome.warnings.some((w) => /could not be automatically detected/i.test(w)),
+    outcome.warnings.some((w) =>
+      /could not be automatically detected/i.test(w),
+    ),
   );
 });
 
 test("importFromUrl survives a blocked page and returns a manual-entry result", async () => {
-  const outcome = await affiliateService.importFromUrl("https://www.amazon.in/dp/B08N5WRWNW", {
-    fetchPage: failingFetch,
-  });
+  const outcome = await affiliateService.importFromUrl(
+    "https://www.amazon.in/dp/B08N5WRWNW",
+    {
+      fetchPage: failingFetch,
+    },
+  );
   assert.equal(outcome.fetchFailed, true);
   assert.ok(/restricted automated access/i.test(outcome.errorMessage));
   assert.ok(outcome.missing.includes("title"));
-  assert.equal(outcome.product.affiliateUrl, "https://www.amazon.in/dp/B08N5WRWNW");
+  assert.equal(
+    outcome.product.affiliateUrl,
+    "https://www.amazon.in/dp/B08N5WRWNW",
+  );
 });
 
 /* ------------------------------ Field mapping ---------------------------- */
@@ -218,7 +301,10 @@ test("toProductFields maps provider output and tolerates a null price", () => {
   assert.equal(fields.originalPrice, 0);
   assert.equal(fields.images.length, 1);
   assert.equal(fields.externalProductId, "B08N5WRWNW");
-  assert.equal(fields.affiliateUrl, "https://www.amazon.in/dp/B08N5WRWNW?tag=t-21");
+  assert.equal(
+    fields.affiliateUrl,
+    "https://www.amazon.in/dp/B08N5WRWNW?tag=t-21",
+  );
 });
 
 /* ---------------------------- Redirect safety ---------------------------- */
@@ -244,13 +330,31 @@ test("resolveAffiliateUrl returns the stored affiliate URL (any http(s) marketpl
   );
 });
 
-test("resolveAffiliateUrl refuses non-affiliate and draft products", () => {
+test("resolveAffiliateUrl supports legacy origin metadata and refuses manual/draft products", () => {
+  assert.equal(
+    affiliateService.resolveAffiliateUrl({
+      ...publishedAffiliate,
+      // Legacy imports received the schema's INTERNAL default even though the
+      // persisted affiliate destination identifies them as external products.
+      productType: "INTERNAL",
+    }),
+    publishedAffiliate.affiliateUrl,
+  );
   assert.throws(
-    () => affiliateService.resolveAffiliateUrl({ ...publishedAffiliate, productType: "INTERNAL" }),
+    () =>
+      affiliateService.resolveAffiliateUrl({
+        productType: "INTERNAL",
+        status: "published",
+        affiliateUrl: "",
+      }),
     (err) => err instanceof ImportError && err.httpStatus === 404,
   );
   assert.throws(
-    () => affiliateService.resolveAffiliateUrl({ ...publishedAffiliate, status: "draft" }),
+    () =>
+      affiliateService.resolveAffiliateUrl({
+        ...publishedAffiliate,
+        status: "draft",
+      }),
     (err) => err instanceof ImportError && err.httpStatus === 404,
   );
 });

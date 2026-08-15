@@ -3,6 +3,7 @@ const router = express.Router();
 const Product = require("../models/Product");
 const affiliateService = require("../services/affiliateService");
 const { ImportError } = require("../services/affiliate/errors");
+const { withCanonicalOrigin } = require("../utils/productOrigin");
 
 /**
  * GET /go/product/:id
@@ -14,13 +15,19 @@ const { ImportError } = require("../services/affiliate/errors");
 router.get("/product/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
-      .select("name productType status affiliateUrl originalUrl sourcePlatform")
+      .select(
+        "name productType status affiliateUrl originalUrl sourceUrl sourcePlatform platform",
+      )
       .lean();
 
-    const url = affiliateService.resolveAffiliateUrl(product);
+    const url = affiliateService.resolveAffiliateUrl(
+      withCanonicalOrigin(product),
+    );
 
     // Fire-and-forget click counter: never fail the redirect over analytics.
-    Product.findByIdAndUpdate(req.params.id, { $inc: { affiliateClicks: 1 } }).catch(() => {});
+    Product.findByIdAndUpdate(req.params.id, {
+      $inc: { affiliateClicks: 1 },
+    }).catch(() => {});
 
     // Never cache a redirect: the destination can change when an admin edits
     // or unpublishes the product.

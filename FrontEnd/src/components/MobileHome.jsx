@@ -82,10 +82,23 @@ const HorizontalProductRow = memo(({ items }) => (
               100,
           )
         : product.discount || 0;
+      const isAffiliate = product.productType === "AFFILIATE";
+      const sourcePlatform = String(product.sourcePlatform || "").toLowerCase();
+      const platformLabel =
+        sourcePlatform && sourcePlatform !== "unknown"
+          ? sourcePlatform.charAt(0).toUpperCase() + sourcePlatform.slice(1)
+          : "Platform";
       return (
         <Link
           key={product._id}
-          to={`/product/${product._id}`}
+          to={
+            isAffiliate
+              ? `/go/product/${encodeURIComponent(product._id)}`
+              : `/product/${product._id}`
+          }
+          aria-label={
+            isAffiliate ? `Buy ${product.name} on ${platformLabel}` : undefined
+          }
           className="block w-[140px] shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm no-underline"
         >
           <div className="relative aspect-square bg-white">
@@ -129,6 +142,14 @@ const HorizontalProductRow = memo(({ items }) => (
                 </span>
               )}
             </div>
+            {isAffiliate && (
+              <span className="mt-2 flex items-center justify-center gap-0.5 rounded-md bg-indigo-600 px-1.5 py-1 text-[9px] font-bold text-white">
+                Buy on {platformLabel}
+                <span style={matIcon} aria-hidden="true">
+                  open_in_new
+                </span>
+              </span>
+            )}
           </div>
         </Link>
       );

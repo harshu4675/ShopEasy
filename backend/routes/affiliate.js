@@ -5,6 +5,7 @@ const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 const affiliateService = require("../services/affiliateService");
 const { ImportError } = require("../services/affiliate/errors");
+const { deleteProduct } = require("../services/productDeletion");
 
 const CATEGORIES = affiliateService.CATEGORY_ENUM;
 
@@ -23,7 +24,8 @@ const sendImportError = (res, err) => {
   return res.status(500).json({
     success: false,
     code: "IMPORT_ERROR",
-    message: "Product information could not be retrieved from the selected source.",
+    message:
+      "Product information could not be retrieved from the selected source.",
   });
 };
 
@@ -166,7 +168,9 @@ router.get("/:id", auth, admin, async (req, res) => {
       ...AFFILIATE_FILTER,
     }).lean();
     if (!product) {
-      return res.status(404).json({ success: false, message: "Affiliate product not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Affiliate product not found" });
     }
     res.json(product);
   } catch (err) {
@@ -187,7 +191,9 @@ router.put("/:id", auth, admin, async (req, res) => {
       ...AFFILIATE_FILTER,
     });
     if (!product) {
-      return res.status(404).json({ success: false, message: "Affiliate product not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Affiliate product not found" });
     }
 
     const editable = [
@@ -210,8 +216,7 @@ router.put("/:id", auth, admin, async (req, res) => {
         } else if (field === "originalPrice") {
           // An MRP is optional: fall back to the selling price so the price
           // block stays consistent instead of showing a ₹0 strike-through.
-          product[field] =
-            Number(req.body[field]) || product.price || 0;
+          product[field] = Number(req.body[field]) || product.price || 0;
         } else {
           product[field] = req.body[field];
         }
@@ -236,9 +241,10 @@ router.put("/:id", auth, admin, async (req, res) => {
       product.affiliateUrl = url;
     }
 
-    product.discount = req.body.discount !== undefined
-      ? Math.min(100, Math.max(0, Number(req.body.discount) || 0))
-      : recomputeDiscount(product.price, product.originalPrice);
+    product.discount =
+      req.body.discount !== undefined
+        ? Math.min(100, Math.max(0, Number(req.body.discount) || 0))
+        : recomputeDiscount(product.price, product.originalPrice);
 
     await product.save();
     res.json({ success: true, product });
@@ -255,7 +261,9 @@ router.patch("/:id/publish", auth, admin, async (req, res) => {
       ...AFFILIATE_FILTER,
     });
     if (!product) {
-      return res.status(404).json({ success: false, message: "Affiliate product not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Affiliate product not found" });
     }
     if (!product.name || !product.images || product.images.length === 0) {
       return res.status(400).json({
@@ -272,7 +280,8 @@ router.patch("/:id/publish", auth, admin, async (req, res) => {
     if (!product.affiliateUrl) {
       return res.status(400).json({
         success: false,
-        message: "This product has no affiliate destination to send customers to.",
+        message:
+          "This product has no affiliate destination to send customers to.",
       });
     }
     product.status = "published";
@@ -291,7 +300,9 @@ router.patch("/:id/unpublish", auth, admin, async (req, res) => {
       ...AFFILIATE_FILTER,
     });
     if (!product) {
-      return res.status(404).json({ success: false, message: "Affiliate product not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Affiliate product not found" });
     }
     product.status = "unpublished";
     await product.save();
@@ -312,7 +323,9 @@ router.post("/:id/reimport", auth, admin, async (req, res) => {
       ...AFFILIATE_FILTER,
     });
     if (!product) {
-      return res.status(404).json({ success: false, message: "Affiliate product not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Affiliate product not found" });
     }
     const sourceUrl = product.originalUrl;
     if (!sourceUrl) {
@@ -361,14 +374,18 @@ router.post("/:id/reimport", auth, admin, async (req, res) => {
 /** DELETE /api/admin/affiliate/:id */
 router.delete("/:id", auth, admin, async (req, res) => {
   try {
-    const product = await Product.findOneAndDelete({
-      _id: req.params.id,
-      ...AFFILIATE_FILTER,
-    });
-    if (!product) {
-      return res.status(404).json({ success: false, message: "Affiliate product not found" });
+    const result = await deleteProduct(req.params.id, AFFILIATE_FILTER);
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Affiliate product not found",
+      });
     }
-    res.json({ success: true, message: "Affiliate product deleted" });
+    res.json({
+      success: true,
+      message: "Affiliate product deleted",
+      cleanupWarnings: result.cleanupErrors,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

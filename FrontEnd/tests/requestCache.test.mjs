@@ -39,17 +39,13 @@ globalThis.localStorage = new Proxy(storage, {
   ownKeys: (t) => [...t.store.keys()],
   getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }),
   get: (t, prop) =>
-    typeof t[prop] === "function" ? t[prop].bind(t) : t[prop] ?? t.store.get(prop),
+    typeof t[prop] === "function"
+      ? t[prop].bind(t)
+      : (t[prop] ?? t.store.get(prop)),
 });
 
-const {
-  cachedRequest,
-  buildKey,
-  invalidate,
-  getCached,
-  setCached,
-  subscribe,
-} = await import("../src/utils/requestCache.js");
+const { cachedRequest, buildKey, invalidate, getCached, setCached, subscribe } =
+  await import("../src/utils/requestCache.js");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -121,6 +117,55 @@ test("force bypasses a fresh value", async () => {
   assert.equal(calls, 2);
 });
 
+test("prefix invalidation removes product lists and details but not unrelated data", () => {
+  setCached("/products?sort=newest", [{ _id: "p1" }]);
+  setCached("/products/p1", { _id: "p1" });
+  setCached("/categories", ["Clothing"]);
+
+  invalidate("/products");
+
+  assert.equal(getCached("/products?sort=newest"), undefined);
+  assert.equal(getCached("/products/p1"), undefined);
+  assert.deepEqual(getCached("/categories"), ["Clothing"]);
+});
+
+test("prefix invalidation clears persisted entries not loaded in memory", () => {
+  setCached("/products?sort=newest", [{ _id: "deleted" }], 60_000, {
+    persist: true,
+  });
+  setCached("/categories", ["Clothing"], 60_000, { persist: true });
+  simulateReload();
+
+  invalidate("/products");
+
+  assert.equal(getCached("/products?sort=newest"), undefined);
+  assert.deepEqual(getCached("/categories"), ["Clothing"]);
+});
+
+test("an invalidated in-flight response cannot restore stale product data", async () => {
+  let releaseOld;
+  const oldRequest = cachedRequest(
+    "/products",
+    () =>
+      new Promise((resolve) => {
+        releaseOld = resolve;
+      }),
+    { ttl: 60_000, persist: true },
+  );
+  await Promise.resolve();
+
+  invalidate("/products");
+  const freshRequest = cachedRequest(
+    "/products",
+    async () => ({ products: ["fresh"] }),
+    { ttl: 60_000, persist: true },
+  );
+  releaseOld({ products: ["deleted"] });
+
+  await Promise.all([oldRequest, freshRequest]);
+  assert.deepEqual(getCached("/products"), { products: ["fresh"] });
+});
+
 test("stale-while-revalidate returns instantly and refreshes behind", async () => {
   let calls = 0;
   const factory = async () => {
@@ -139,10 +184,16 @@ test("stale-while-revalidate returns instantly and refreshes behind", async () =
   const elapsed = Date.now() - started;
 
   assert.equal(stale.version, 1, "stale value served immediately");
-  assert.ok(elapsed < 15, `returned without waiting for the network (${elapsed}ms)`);
+  assert.ok(
+    elapsed < 15,
+    `returned without waiting for the network (${elapsed}ms)`,
+  );
 
   await sleep(60);
-  const refreshed = await cachedRequest("/swr", factory, { ttl: 20, swr: true });
+  const refreshed = await cachedRequest("/swr", factory, {
+    ttl: 20,
+    swr: true,
+  });
   assert.equal(refreshed.version, 2, "background refresh replaced the value");
 });
 
@@ -185,17 +236,29 @@ test("stale data is served when the request fails", async () => {
     maxAge: 60_000,
   });
 
-  assert.deepEqual(result, { ok: true }, "stale value used instead of throwing");
+  assert.deepEqual(
+    result,
+    { ok: true },
+    "stale value used instead of throwing",
+  );
 });
 
-test("the error propagates when there is nothing cached", async () => {
-  const factory = async () => {
-    throw new Error("Network Error");
+test("a synchronous request error propagates without poisoning retries", async () => {
+  let attempts = 0;
+  const factory = () => {
+    attempts += 1;
+    if (attempts === 1) throw new Error("Network Error");
+    return { recovered: true };
   };
+
   await assert.rejects(
     () => cachedRequest("/nothing", factory, { ttl: 1000 }),
     /Network Error/,
   );
+  assert.deepEqual(await cachedRequest("/nothing", factory, { ttl: 1000 }), {
+    recovered: true,
+  });
+  assert.equal(attempts, 2);
 });
 
 test("persisted entries survive a cold start", async () => {
@@ -230,8 +293,14 @@ test("invalidate clears by prefix", async () => {
 });
 
 test("invalidate with no argument clears everything including storage", async () => {
-  await cachedRequest("/a", async () => ({ a: 1 }), { ttl: 5000, persist: true });
-  await cachedRequest("/b", async () => ({ b: 1 }), { ttl: 5000, persist: true });
+  await cachedRequest("/a", async () => ({ a: 1 }), {
+    ttl: 5000,
+    persist: true,
+  });
+  await cachedRequest("/b", async () => ({ b: 1 }), {
+    ttl: 5000,
+    persist: true,
+  });
 
   invalidate();
 

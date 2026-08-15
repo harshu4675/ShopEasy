@@ -12,6 +12,7 @@ const multer = require("multer");
 const cloudinary = require("../config/cloudinary");
 const { notifyAllAdmins } = require("../utils/adminNotifier");
 const { sendPushToUser } = require("../utils/pushService");
+const { isAffiliateProduct } = require("../utils/productOrigin");
 const {
   sendOrderPlacedEmail,
   sendOrderStatusEmail,
@@ -203,6 +204,12 @@ router.post("/", auth, async (req, res) => {
       if (!item.product) {
         return res.status(400).json({
           message: "Some products in your cart are no longer available",
+        });
+      }
+      if (isAffiliateProduct(item.product)) {
+        return res.status(400).json({
+          message:
+            "Partner products cannot be checked out here. Buy them from the partner store.",
         });
       }
       if (item.product.stock < item.quantity) {
