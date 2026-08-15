@@ -154,9 +154,10 @@ const ProductDetails = () => {
     : product?.discount || 0;
 
   const isAffiliate = product?.productType === "AFFILIATE";
-  const platformName = product?.sourcePlatform
-    ? product.sourcePlatform.charAt(0).toUpperCase() + product.sourcePlatform.slice(1)
-    : "";
+  const sourcePlatform = String(product?.sourcePlatform || "").toLowerCase();
+  const platformName = sourcePlatform && sourcePlatform !== "unknown"
+    ? sourcePlatform.charAt(0).toUpperCase() + sourcePlatform.slice(1)
+    : "Partner Store";
 
   if (loading) return <Loader fullScreen />;
   if (!product)
@@ -489,7 +490,7 @@ const ProductDetails = () => {
                   <span style={matIcon} className="text-[20px]">
                     open_in_new
                   </span>
-                  Buy Now on {platformName || "Partner Store"}
+                  Buy on {platformName}
                 </Link>
                 <p className="m-0 mt-2 text-center text-[12px] text-[#6b7280]">
                   You will be redirected to {platformName || "the partner store"}{" "}

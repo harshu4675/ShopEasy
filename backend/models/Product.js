@@ -99,7 +99,7 @@ const productSchema = new mongoose.Schema({
     default: 0,
   },
   tags: [String],
-  affiliateUrl: { type: String, trim: true },
+  // Legacy importer fields retained for backward-compatible reads.
   sourceUrl: { type: String, trim: true },
   canonicalUrl: { type: String, trim: true },
   platform: { type: String, trim: true },

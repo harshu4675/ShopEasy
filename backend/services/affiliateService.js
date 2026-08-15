@@ -1,5 +1,6 @@
 const { ImportError, CODES } = require("./affiliate/errors");
 const { detectProvider, generic, isSafeRedirectUrl } = require("./affiliate");
+const { isAffiliateProduct } = require("../utils/productOrigin");
 
 const CATEGORY_ENUM = [
   "Men's Clothing",
@@ -23,11 +24,26 @@ const CATEGORY_RULES = [
   [/sunglass|eyeglass|spectacle|goggle|aviator|ray-?ban/, "Sunglasses"],
   [/watch|chronograph|timepiece|smartwatch|wrist ?watch/, "Watches"],
   [/perfume|fragrance|deodorant|cologne|body ?mist|attar|eau de/, "Perfumes"],
-  [/shoe|sneaker|sandal|heel|boot|slipper|loafer|trainer|footwear|flip.?flop|moccasin/, "Footwear"],
-  [/bag|backpack|handbag|wallet|purse|clutch|tote|luggage|satchel|briefcase|duffle/, "Bags & Wallets"],
-  [/jewel|ring|necklace|earring|bracelet|bangle|pendant|anklet|nose ?pin|chain|mangalsutra/, "Jewelry"],
-  [/saree|sari|kurti|kurt|dress|gown|lehenga|legging|skirt|blouse|salwar|dupatta|women'?s|womens|ladies/, "Women's Clothing"],
-  [/men'?s|mens|shirt|t-?shirt|polo|trouser|jean|blazer|suit|hoodie|sweatshirt|jacket|shorts|boxer|innerwear/, "Men's Clothing"],
+  [
+    /shoe|sneaker|sandal|heel|boot|slipper|loafer|trainer|footwear|flip.?flop|moccasin/,
+    "Footwear",
+  ],
+  [
+    /bag|backpack|handbag|wallet|purse|clutch|tote|luggage|satchel|briefcase|duffle/,
+    "Bags & Wallets",
+  ],
+  [
+    /jewel|ring|necklace|earring|bracelet|bangle|pendant|anklet|nose ?pin|chain|mangalsutra/,
+    "Jewelry",
+  ],
+  [
+    /saree|sari|kurti|kurt|dress|gown|lehenga|legging|skirt|blouse|salwar|dupatta|women'?s|womens|ladies/,
+    "Women's Clothing",
+  ],
+  [
+    /men'?s|mens|shirt|t-?shirt|polo|trouser|jean|blazer|suit|hoodie|sweatshirt|jacket|shorts|boxer|innerwear/,
+    "Men's Clothing",
+  ],
   [/kids|baby|toddler|child|boy'?s|girl'?s|infant|newborn/, "Kids' Clothing"],
 ];
 
@@ -55,7 +71,10 @@ function isValidHttpUrl(value) {
 function inspectUrl(url) {
   const trimmed = String(url || "").trim();
   if (!trimmed) {
-    throw new ImportError(CODES.INVALID_URL, "Please paste a product URL first.");
+    throw new ImportError(
+      CODES.INVALID_URL,
+      "Please paste a product URL first.",
+    );
   }
   if (!isValidHttpUrl(trimmed)) {
     throw new ImportError(
@@ -142,15 +161,20 @@ async function importFromUrl(url, deps = {}) {
     discount: extracted?.discount || 0,
     brand: extracted?.brand || "",
     category: mapCategory(
-      [extracted?.title, extracted?.brand, rawCategory].filter(Boolean).join(" "),
+      [extracted?.title, extracted?.brand, rawCategory]
+        .filter(Boolean)
+        .join(" "),
     ),
     rating: typeof extracted?.rating === "number" ? extracted.rating : 0,
-    reviewCount: typeof extracted?.reviewCount === "number" ? extracted.reviewCount : 0,
+    reviewCount:
+      typeof extracted?.reviewCount === "number" ? extracted.reviewCount : 0,
     variants: extracted?.variants || [],
     availability: extracted?.availability || "",
     externalProductId:
       (extracted && extracted.externalProductId) ||
-      (provider && provider.extractProductId ? provider.extractProductId(normalizedUrl) : "") ||
+      (provider && provider.extractProductId
+        ? provider.extractProductId(normalizedUrl)
+        : "") ||
       "",
     originalUrl: extracted?.originalUrl || normalizedUrl,
     // The exact URL the admin pasted is the affiliate destination. Tracking
@@ -209,9 +233,10 @@ function toProductFields(result) {
       ? result.category
       : "Accessories",
     brand: result.brand || "",
-    images: Array.isArray(result.images) && result.images.length > 0
-      ? result.images.slice(0, 8)
-      : [],
+    images:
+      Array.isArray(result.images) && result.images.length > 0
+        ? result.images.slice(0, 8)
+        : [],
     rating: Number(result.rating) || 0,
     numReviews: Number(result.reviewCount) || 0,
     variants: Array.isArray(result.variants) ? result.variants : [],
@@ -230,15 +255,27 @@ function toProductFields(result) {
  * followed when it is a plain http(s) link.
  */
 function resolveAffiliateUrl(product) {
-  if (!product || product.productType !== "AFFILIATE") {
-    throw new ImportError(CODES.PRODUCT_UNAVAILABLE, "This is not an affiliate product.", 404);
+  if (!isAffiliateProduct(product)) {
+    throw new ImportError(
+      CODES.PRODUCT_UNAVAILABLE,
+      "This is not an affiliate product.",
+      404,
+    );
   }
   if (product.status !== "published") {
-    throw new ImportError(CODES.PRODUCT_UNAVAILABLE, "This product is not available right now.", 404);
+    throw new ImportError(
+      CODES.PRODUCT_UNAVAILABLE,
+      "This product is not available right now.",
+      404,
+    );
   }
   const url = product.affiliateUrl || product.originalUrl;
   if (!url) {
-    throw new ImportError(CODES.PRODUCT_UNAVAILABLE, "This product has no external destination.", 404);
+    throw new ImportError(
+      CODES.PRODUCT_UNAVAILABLE,
+      "This product has no external destination.",
+      404,
+    );
   }
   if (!isSafeRedirectUrl(url)) {
     throw new ImportError(

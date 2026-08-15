@@ -1,18 +1,11 @@
 import React from "react";
 import DesktopCheckout from "../components/DesktopCheckout";
 import MobileCheckout from "../components/MobileCheckout";
+import useMediaQuery from "../hooks/useMediaQuery";
 
 const Checkout = () => {
-  return (
-    <>
-      <div className="hidden md:block">
-        <DesktopCheckout />
-      </div>
-      <div className="md:hidden">
-        <MobileCheckout />
-      </div>
-    </>
-  );
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  return isDesktop ? <DesktopCheckout /> : <MobileCheckout />;
 };
 
 export default Checkout;

@@ -220,10 +220,6 @@ const MobileProductDetails = () => {
   };
 
   const buyNow = async () => {
-    if (product?.affiliateUrl) {
-      window.location.assign(product.affiliateUrl);
-      return;
-    }
     if (!user) {
       showToast("Please login to buy", "error");
       navigate("/login");
@@ -344,9 +340,10 @@ const MobileProductDetails = () => {
   const displayedReviews = showAllReviews ? reviews : reviews.slice(0, 3);
 
   const isAffiliate = product.productType === "AFFILIATE";
-  const platformName = product.sourcePlatform
-    ? product.sourcePlatform.charAt(0).toUpperCase() + product.sourcePlatform.slice(1)
-    : "";
+  const sourcePlatform = String(product.sourcePlatform || "").toLowerCase();
+  const platformName = sourcePlatform && sourcePlatform !== "unknown"
+    ? sourcePlatform.charAt(0).toUpperCase() + sourcePlatform.slice(1)
+    : "Partner Store";
 
   return (
     <div
@@ -793,7 +790,7 @@ const MobileProductDetails = () => {
             <span style={matIcon} className="text-[20px]">
               open_in_new
             </span>
-            Buy Now on {platformName || "Partner Store"}
+            Buy on {platformName}
           </Link>
         ) : (
         <div className="flex gap-2">

@@ -7,6 +7,12 @@ const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 const affiliateService = require("../services/affiliateService");
 const { ImportError } = require("../services/affiliate/errors");
+const { deleteProduct } = require("../services/productDeletion");
+const {
+  inferSourcePlatform,
+  isSafeWebUrl,
+  withCanonicalOrigin,
+} = require("../utils/productOrigin");
 
 // Configure multer to use memory storage instead of disk
 const storage = multer.memoryStorage();
@@ -44,6 +50,30 @@ const uploadToCloudinary = (fileBuffer) => {
     uploadStream.end(fileBuffer);
   });
 };
+
+function publicProduct(product) {
+  const normalized = withCanonicalOrigin(product);
+  // Destinations are resolved through /affiliate-url so listing/detail payloads
+  // expose affiliate identity without leaking or bypassing the controlled URL.
+  delete normalized.affiliateUrl;
+  delete normalized.originalUrl;
+  delete normalized.sourceUrl;
+  delete normalized.canonicalUrl;
+  delete normalized.importMetadata;
+  return normalized;
+}
+
+function parseJsonField(value, field, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    const error = new Error(`Invalid ${field}`);
+    error.statusCode = 400;
+    throw error;
+  }
+}
 
 // Get all products with filters
 router.get("/", async (req, res) => {
@@ -107,11 +137,11 @@ router.get("/", async (req, res) => {
       // Only the fields the product grid renders. Dropping `description` alone
       // cuts the payload substantially on a 40-item response.
       .select(
-        "name price originalPrice discount category subCategory brand images rating numReviews stock sizes colors isTrending salesCount createdAt",
+        "name price originalPrice discount category subCategory brand images rating numReviews stock sizes colors isTrending salesCount createdAt productType status sourcePlatform affiliateUrl originalUrl sourceUrl platform",
       )
       .lean();
 
-    res.json(result);
+    res.json(result.map(publicProduct));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -120,19 +150,22 @@ router.get("/", async (req, res) => {
 /**
  * GET /api/products/:id/affiliate-url
  * Public resolution of an affiliate product's destination. Returns the URL
- * only when the product is a published affiliate product and the destination
- * passes the platform whitelist — never an arbitrary URL.
+ * only when the product is a published affiliate product and its persisted
+ * destination uses a safe HTTP(S) scheme.
  */
 router.get("/:id/affiliate-url", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
-      .select("name productType status affiliateUrl originalUrl sourcePlatform")
+      .select(
+        "name productType status affiliateUrl originalUrl sourceUrl sourcePlatform platform",
+      )
       .lean();
-    const url = affiliateService.resolveAffiliateUrl(product);
+    const normalized = withCanonicalOrigin(product);
+    const url = affiliateService.resolveAffiliateUrl(normalized);
     res.json({
       url,
-      platform: product.sourcePlatform,
-      name: product.name,
+      platform: normalized.sourcePlatform,
+      name: normalized.name,
     });
   } catch (error) {
     if (error instanceof ImportError) {
@@ -156,7 +189,7 @@ router.get("/:id", async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    res.json(product);
+    res.json(publicProduct(product));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -174,40 +207,94 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
       category,
       subCategory,
       brand,
-      sizes,
-      colors,
       stock,
-      tags,
-      affiliateUrl,
-      sourceUrl,
-      canonicalUrl,
-      platform,
-      importMetadata,
+      affiliateUrl: requestedAffiliateUrl,
       imageUrls: requestedImageUrls,
     } = req.body;
 
-    // Upload images to Cloudinary
+    const affiliateUrl = String(requestedAffiliateUrl || "").trim();
+    const requestedType = String(req.body.productType || "")
+      .trim()
+      .toUpperCase();
+    if (requestedType && !["INTERNAL", "AFFILIATE"].includes(requestedType)) {
+      return res.status(400).json({ message: "Invalid product type" });
+    }
+    // Compatibility: the original Add Product importer sent affiliateUrl but
+    // not productType. New clients send both explicitly.
+    const productType =
+      requestedType || (affiliateUrl ? "AFFILIATE" : "INTERNAL");
+    if (productType === "AFFILIATE" && !isSafeWebUrl(affiliateUrl)) {
+      return res.status(400).json({
+        message: "Affiliate products require a valid http(s) destination",
+      });
+    }
+
     let productImages = [];
-    if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map((file) =>
-        uploadToCloudinary(file.buffer),
+    if (req.files?.length) {
+      productImages = await Promise.all(
+        req.files.map((file) => uploadToCloudinary(file.buffer)),
       );
-      productImages = await Promise.all(uploadPromises);
     }
 
-    let importedImageUrls = [];
-    if (requestedImageUrls) {
-      try {
-        importedImageUrls = JSON.parse(requestedImageUrls).filter((url) => /^https?:\/\//i.test(url)).slice(0, 5);
-      } catch {
-        return res.status(400).json({ message: "Invalid imported image URLs" });
-      }
+    const parsedImageUrls = parseJsonField(
+      requestedImageUrls,
+      "imported image URLs",
+      [],
+    );
+    if (!Array.isArray(parsedImageUrls)) {
+      return res.status(400).json({ message: "Invalid imported image URLs" });
     }
-    if (!importedImageUrls.length && (!req.files || req.files.length === 0)) {
-      return res.status(400).json({ message: "At least one product image is required" });
-    }
-
+    const importedImageUrls = parsedImageUrls.filter(isSafeWebUrl).slice(0, 5);
     if (!productImages.length) productImages = importedImageUrls;
+    if (!productImages.length) {
+      return res.status(400).json({
+        message: "At least one product image is required",
+      });
+    }
+
+    const sizes = parseJsonField(req.body.sizes, "sizes", []);
+    const colors = parseJsonField(req.body.colors, "colors", []);
+    const tags = parseJsonField(req.body.tags, "tags", []);
+    const importMetadata = parseJsonField(
+      req.body.importMetadata,
+      "import metadata",
+      undefined,
+    );
+    if (
+      !Array.isArray(sizes) ||
+      !Array.isArray(colors) ||
+      !Array.isArray(tags)
+    ) {
+      return res.status(400).json({ message: "Invalid product options" });
+    }
+    if (
+      importMetadata !== undefined &&
+      (!importMetadata ||
+        Array.isArray(importMetadata) ||
+        typeof importMetadata !== "object")
+    ) {
+      return res.status(400).json({ message: "Invalid import metadata" });
+    }
+
+    const sourcePlatform =
+      productType === "AFFILIATE"
+        ? String(
+            req.body.sourcePlatform ||
+              req.body.platform ||
+              inferSourcePlatform(affiliateUrl),
+          )
+            .trim()
+            .toLowerCase()
+        : "";
+    const originalUrl =
+      productType === "AFFILIATE"
+        ? String(
+            req.body.originalUrl ||
+              req.body.canonicalUrl ||
+              req.body.sourceUrl ||
+              affiliateUrl,
+          ).trim()
+        : "";
 
     const product = await Product.create({
       name,
@@ -218,22 +305,31 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
       category,
       subCategory,
       brand,
-      sizes: sizes ? JSON.parse(sizes) : [],
-      colors: colors ? JSON.parse(colors) : [],
+      sizes,
+      colors,
       stock,
       images: productImages,
-      tags: tags ? JSON.parse(tags) : [],
-      affiliateUrl,
-      sourceUrl,
-      canonicalUrl,
-      platform,
-      importMetadata: importMetadata ? JSON.parse(importMetadata) : undefined,
+      tags,
+      productType,
+      affiliateUrl: productType === "AFFILIATE" ? affiliateUrl : "",
+      sourcePlatform,
+      externalProductId:
+        req.body.externalProductId || req.body.productId || req.body.asin || "",
+      originalUrl,
+      // Keep populated legacy fields so older admin screens remain editable.
+      sourceUrl:
+        productType === "AFFILIATE" ? req.body.sourceUrl || originalUrl : "",
+      canonicalUrl:
+        productType === "AFFILIATE" ? req.body.canonicalUrl || originalUrl : "",
+      platform: sourcePlatform,
+      importMetadata,
+      importedAt: productType === "AFFILIATE" ? new Date() : undefined,
     });
 
-    res.status(201).json(product);
+    res.status(201).json(withCanonicalOrigin(product.toObject()));
   } catch (error) {
     console.error("Error creating product:", error);
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 });
 
@@ -273,9 +369,14 @@ router.put("/:id", auth, admin, upload.array("images", 5), async (req, res) => {
       }
     });
 
-    if (req.body.sizes) product.sizes = JSON.parse(req.body.sizes);
-    if (req.body.colors) product.colors = JSON.parse(req.body.colors);
-    if (req.body.tags) product.tags = JSON.parse(req.body.tags);
+    for (const field of ["sizes", "colors", "tags"]) {
+      if (req.body[field] === undefined || req.body[field] === "") continue;
+      const parsed = parseJsonField(req.body[field], field, []);
+      if (!Array.isArray(parsed)) {
+        return res.status(400).json({ message: `Invalid ${field}` });
+      }
+      product[field] = parsed;
+    }
 
     // If new images are uploaded, upload to Cloudinary
     if (req.files && req.files.length > 0) {
@@ -290,37 +391,22 @@ router.put("/:id", auth, admin, upload.array("images", 5), async (req, res) => {
     res.json(product);
   } catch (error) {
     console.error("Error updating product:", error);
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 });
 
 // Delete product (Admin)
 router.delete("/:id", auth, admin, async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).lean();
-    if (!product) {
+    const result = await deleteProduct(req.params.id);
+    if (!result) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Optional: Delete images from Cloudinary. Affiliate images are hosted by
-    // the source platform, so there is nothing of ours to clean up.
-    if (
-      product.productType !== "AFFILIATE" &&
-      product.images &&
-      product.images.length > 0
-    ) {
-      const deletePromises = product.images.map((imageUrl) => {
-        // Extract public_id from Cloudinary URL
-        const parts = imageUrl.split("/");
-        const filename = parts[parts.length - 1].split(".")[0];
-        const publicId = `shopeasy/products/${filename}`;
-        return cloudinary.uploader.destroy(publicId);
-      });
-      await Promise.all(deletePromises);
-    }
-
-    await product.deleteOne();
-    res.json({ message: "Product deleted successfully" });
+    res.json({
+      message: "Product deleted successfully",
+      cleanupWarnings: result.cleanupErrors,
+    });
   } catch (error) {
     console.error("Error deleting product:", error);
     res.status(500).json({ message: error.message });

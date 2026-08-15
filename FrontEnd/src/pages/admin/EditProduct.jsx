@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api, categoriesAPI } from "../../utils/api";
+import {
+  api,
+  categoriesAPI,
+  invalidateCache,
+  CACHE_KEYS,
+} from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import Loader from "../../components/Loader";
 
@@ -185,6 +190,7 @@ const EditProduct = () => {
       await api.put(`/products/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      invalidateCache(CACHE_KEYS.products);
       showToast("Product updated successfully", "success");
       navigate("/admin/products");
     } catch (error) {

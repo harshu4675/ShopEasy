@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { api, formatPrice } from "../../utils/api";
+import { api, formatPrice, invalidateCache, CACHE_KEYS } from "../../utils/api";
 import { showToast } from "../../utils/toast";
 import { matIcon } from "../../utils/fonts";
 import Loader from "../../components/Loader";
@@ -29,7 +29,11 @@ const Field = ({ label, hint, children }) => (
   <div>
     <label className={labelCls}>
       {label}
-      {hint && <span className="ml-2 text-[11px] font-medium text-gray-400">{hint}</span>}
+      {hint && (
+        <span className="ml-2 text-[11px] font-medium text-gray-400">
+          {hint}
+        </span>
+      )}
     </label>
     {children}
   </div>
@@ -95,7 +99,9 @@ const AffiliateProductEditor = () => {
     setImporting(true);
     setImportError(null);
     try {
-      const { data } = await api.post("/admin/affiliate/import", { url: targetUrl });
+      const { data } = await api.post("/admin/affiliate/import", {
+        url: targetUrl,
+      });
       const imported = data.product;
       const missing = data.missing || [];
       const warnings = data.warnings || [];
@@ -109,10 +115,10 @@ const AffiliateProductEditor = () => {
         name: imported.name || "",
         description: imported.description || "",
         category: imported.category || "Accessories",
-        price: missing.includes("price") ? "" : imported.price ?? 0,
+        price: missing.includes("price") ? "" : (imported.price ?? 0),
         originalPrice: missing.includes("price")
           ? ""
-          : imported.originalPrice ?? imported.price ?? 0,
+          : (imported.originalPrice ?? imported.price ?? 0),
         brand: imported.brand || "",
         tags: (imported.tags || []).join(", "),
         images: imported.images || [],
@@ -174,20 +180,23 @@ const AffiliateProductEditor = () => {
     }
     setSaving(true);
     try {
-      const { data } = await api.put(`/admin/affiliate/${product._id}`, buildPayload());
+      const { data } = await api.put(
+        `/admin/affiliate/${product._id}`,
+        buildPayload(),
+      );
       setProduct(data.product);
+      invalidateCache(CACHE_KEYS.products);
       if (thenPublish) {
         setPublishing(true);
         try {
-          const pub = await api.patch(`/admin/affiliate/${product._id}/publish`);
+          const pub = await api.patch(
+            `/admin/affiliate/${product._id}/publish`,
+          );
           setProduct(pub.data.product);
           showToast("Product published to the store", "success");
           navigate("/admin/affiliate");
         } catch (error) {
-          showToast(
-            error.response?.data?.message || "Publish failed",
-            "error",
-          );
+          showToast(error.response?.data?.message || "Publish failed", "error");
         } finally {
           setPublishing(false);
         }
@@ -210,6 +219,7 @@ const AffiliateProductEditor = () => {
     if (!window.confirm("Discard this imported product?")) return;
     try {
       await api.delete(`/admin/affiliate/${product._id}`);
+      invalidateCache(CACHE_KEYS.products);
       navigate("/admin/affiliate");
     } catch (error) {
       showToast(error.response?.data?.message || "Could not discard", "error");
@@ -289,9 +299,9 @@ const AffiliateProductEditor = () => {
               <span className="font-semibold text-gray-700">
                 Amazon, Flipkart, Myntra, Ajio, Meesho
               </span>{" "}
-              and any other product page. No marketplace API keys required —
-              we read the publicly visible page metadata (JSON-LD, OpenGraph
-              and meta tags), never fabricate data and never bypass platform
+              and any other product page. No marketplace API keys required — we
+              read the publicly visible page metadata (JSON-LD, OpenGraph and
+              meta tags), never fabricate data and never bypass platform
               protections.
             </div>
           </form>
@@ -303,9 +313,12 @@ const AffiliateProductEditor = () => {
 
   /* ------------------------------ Preview / edit -------------------------- */
   const platform = platformLabel(product?.sourcePlatform);
-  const discount = form.originalPrice > form.price
-    ? Math.round(((form.originalPrice - form.price) / form.originalPrice) * 100)
-    : 0;
+  const discount =
+    form.originalPrice > form.price
+      ? Math.round(
+          ((form.originalPrice - form.price) / form.originalPrice) * 100,
+        )
+      : 0;
 
   return (
     <div className="min-h-screen pb-20">
@@ -347,8 +360,18 @@ const AffiliateProductEditor = () => {
             {product?.status === "published" && (
               <button
                 onClick={async () => {
-                  await api.patch(`/admin/affiliate/${product._id}/unpublish`);
-                  navigate("/admin/affiliate");
+                  try {
+                    await api.patch(
+                      `/admin/affiliate/${product._id}/unpublish`,
+                    );
+                    invalidateCache(CACHE_KEYS.products);
+                    navigate("/admin/affiliate");
+                  } catch (error) {
+                    showToast(
+                      error.response?.data?.message || "Unpublish failed",
+                      "error",
+                    );
+                  }
                 }}
                 className="inline-flex cursor-pointer items-center gap-2 rounded-xl border-none bg-amber-100 px-5 py-3 text-[14px] font-bold text-amber-700 transition-all hover:bg-amber-200"
               >
@@ -363,7 +386,9 @@ const AffiliateProductEditor = () => {
               Save Changes
             </button>
             <button
-              onClick={() => (isEdit ? navigate("/admin/affiliate") : discardDraft())}
+              onClick={() =>
+                isEdit ? navigate("/admin/affiliate") : discardDraft()
+              }
               className="inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-[14px] font-semibold text-gray-500 transition-all hover:bg-gray-50"
             >
               {isEdit ? "Back" : "Cancel"}
@@ -446,7 +471,9 @@ const AffiliateProductEditor = () => {
               {discount > 0 && (
                 <span
                   className="absolute left-3 top-3 rounded-md px-2 py-1 text-[11px] font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, #831843, #be185d)" }}
+                  style={{
+                    background: "linear-gradient(135deg, #831843, #be185d)",
+                  }}
                 >
                   {discount}% OFF
                 </span>
@@ -536,7 +563,10 @@ const AffiliateProductEditor = () => {
               </Field>
 
               <div className="grid grid-cols-2 gap-4 md:grid-cols-1">
-                <Field label="Selling price (₹)" hint={`from ${platform || "source"}`}>
+                <Field
+                  label="Selling price (₹)"
+                  hint={`from ${platform || "source"}`}
+                >
                   <input
                     type="number"
                     min="0"
@@ -550,7 +580,10 @@ const AffiliateProductEditor = () => {
                     className={inputCls}
                   />
                 </Field>
-                <Field label="MRP / original price (₹)" hint={`from ${platform || "source"}`}>
+                <Field
+                  label="MRP / original price (₹)"
+                  hint={`from ${platform || "source"}`}
+                >
                   <input
                     type="number"
                     min="0"
@@ -595,7 +628,10 @@ const AffiliateProductEditor = () => {
                 />
               </Field>
 
-              <Field label="Images" hint={`from ${platform || "source"} — hosted externally`}>
+              <Field
+                label="Images"
+                hint={`from ${platform || "source"} — hosted externally`}
+              >
                 <div className="flex flex-wrap gap-2">
                   {form.images.map((img, i) => (
                     <div

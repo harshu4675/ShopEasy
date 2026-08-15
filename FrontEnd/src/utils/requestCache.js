@@ -22,6 +22,7 @@ const STORAGE_VERSION = "v1";
 const cache = new Map();
 const inFlight = new Map();
 const subscribers = new Map();
+let invalidationVersion = 0;
 
 const now = () => Date.now();
 
@@ -66,21 +67,13 @@ const writePersisted = (key, entry) => {
       const keys = Object.keys(localStorage).filter((k) =>
         k.startsWith(STORAGE_PREFIX),
       );
-      keys.slice(0, Math.ceil(keys.length / 2)).forEach((k) =>
-        localStorage.removeItem(k),
-      );
+      keys
+        .slice(0, Math.ceil(keys.length / 2))
+        .forEach((k) => localStorage.removeItem(k));
       localStorage.setItem(storageKey(key), JSON.stringify(entry));
     } catch {
       /* nothing more we can do */
     }
-  }
-};
-
-const removePersisted = (key) => {
-  try {
-    localStorage.removeItem(storageKey(key));
-  } catch {
-    /* ignore */
   }
 };
 
@@ -131,30 +124,44 @@ export const setCached = (key, data, ttl = DEFAULT_TTL, options = {}) => {
 
 /**
  * Clears cached entries. Accepts a string prefix or a RegExp; with no argument
- * it clears everything, including anything persisted.
+ * it clears everything, including anything persisted. Persisted entries are
+ * scanned independently because an admin can mutate a product before a cache
+ * left by an earlier storefront visit has been loaded into memory.
  */
 export const invalidate = (matcher) => {
-  if (!matcher) {
-    cache.clear();
-    try {
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith(STORAGE_PREFIX))
-        .forEach((k) => localStorage.removeItem(k));
-    } catch {
-      /* ignore */
+  invalidationVersion += 1;
+
+  const matches = (key) => {
+    if (!matcher) return true;
+    if (typeof matcher === "string") {
+      return key === matcher || key.startsWith(matcher);
     }
-    return;
-  }
+    matcher.lastIndex = 0;
+    return matcher.test(key);
+  };
 
   for (const key of [...cache.keys()]) {
-    const hit =
-      typeof matcher === "string"
-        ? key === matcher || key.startsWith(matcher)
-        : matcher.test(key);
-    if (hit) {
-      cache.delete(key);
-      removePersisted(key);
-    }
+    if (matches(key)) cache.delete(key);
+  }
+  for (const key of [...inFlight.keys()]) {
+    if (matches(key)) inFlight.delete(key);
+  }
+
+  try {
+    const currentPrefix = `${STORAGE_PREFIX}${STORAGE_VERSION}:`;
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(STORAGE_PREFIX))
+      .forEach((key) => {
+        if (!matcher) {
+          localStorage.removeItem(key);
+          return;
+        }
+        if (!key.startsWith(currentPrefix)) return;
+        const logicalKey = key.slice(currentPrefix.length);
+        if (matches(logicalKey)) localStorage.removeItem(key);
+      });
+  } catch {
+    /* ignore */
   }
 };
 
@@ -208,20 +215,24 @@ export const cachedRequest = async (key, factory, opts = {}) => {
 
   const entry = readEntry(key);
   const isFresh = entry && entry.expiresAt >= now();
+  const requestVersion = invalidationVersion;
 
   if (!force && isFresh) return entry.data;
 
   // Stale-while-revalidate: hand back the old payload now, refresh behind it.
   if (!force && swr && entry) {
     if (!inFlight.has(key)) {
-      const refresh = (async () => {
+      let refresh;
+      refresh = (async () => {
         try {
-          const data = await factory();
-          setCached(key, data, ttl, { persist, maxAge });
-          notify(key, data);
+          const data = await Promise.resolve().then(factory);
+          if (requestVersion === invalidationVersion) {
+            setCached(key, data, ttl, { persist, maxAge });
+            notify(key, data);
+          }
           return data;
         } finally {
-          inFlight.delete(key);
+          if (inFlight.get(key) === refresh) inFlight.delete(key);
         }
       })();
       inFlight.set(key, refresh);
@@ -236,11 +247,16 @@ export const cachedRequest = async (key, factory, opts = {}) => {
   const pending = inFlight.get(key);
   if (pending) return pending;
 
-  const promise = (async () => {
+  let promise;
+  promise = (async () => {
     try {
-      const data = await factory();
-      setCached(key, data, ttl, { persist, maxAge });
-      notify(key, data);
+      const data = await Promise.resolve().then(factory);
+      // A create/edit/delete can finish while an older listing request is in
+      // flight. Never let that older response repopulate the invalidated cache.
+      if (requestVersion === invalidationVersion) {
+        setCached(key, data, ttl, { persist, maxAge });
+        notify(key, data);
+      }
       return data;
     } catch (error) {
       // Last resort during a cold start or an offline moment: serve stale data
@@ -248,7 +264,9 @@ export const cachedRequest = async (key, factory, opts = {}) => {
       if (entry && entry.maxAgeAt >= now()) return entry.data;
       throw error;
     } finally {
-      inFlight.delete(key);
+      // Invalidating a key permits a fresh request before this one settles. An
+      // older request must not remove that newer request from the dedupe map.
+      if (inFlight.get(key) === promise) inFlight.delete(key);
     }
   })();
 
