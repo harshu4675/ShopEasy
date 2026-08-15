@@ -220,6 +220,15 @@ const MobileProductDetails = () => {
   };
 
   const buyNow = async () => {
+    // Affiliate products: "Buy Now" must send the customer to the exact
+    // stored affiliate URL (never the canonical/product URL).
+    if (product?.affiliateUrl) {
+      setActionLoading((p) => ({ ...p, buy: true }));
+      window.open(product.affiliateUrl, "_blank", "noopener,noreferrer");
+      setActionLoading((p) => ({ ...p, buy: false }));
+      return;
+    }
+
     if (!user) {
       showToast("Please login to buy", "error");
       navigate("/login");

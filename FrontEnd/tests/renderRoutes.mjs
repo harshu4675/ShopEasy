@@ -179,7 +179,8 @@ const ROUTES = process.argv[2]
      "/wishlist", "/login", "/register", "/account", "/my-orders", "/coupons",
      "/contact", "/reseller", "/reseller/apply", "/reseller/catalog",
      "/reseller/products", "/reseller/wallet", "/reseller/orders",
-     "/s/abc123", "/store/TRTEST01", "/admin/dashboard", "/admin/products"];
+     "/s/abc123", "/store/TRTEST01", "/admin/dashboard", "/admin/products",
+     "/admin/import-product"];
 
 /** Content each route must actually render, so an empty shell fails. */
 const EXPECT = {
@@ -191,6 +192,7 @@ const EXPECT = {
   "/reseller/catalog": /Test Product/,
   "/reseller/products": /Test Product/,
   "/admin/dashboard": /Resellers/,
+  "/admin/import-product": /Import Product from URL/,
 };
 
 fs.writeFileSync(

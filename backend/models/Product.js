@@ -100,6 +100,34 @@ const productSchema = new mongoose.Schema({
   },
   tags: [String],
 
+  // Affiliate / import metadata. When set, the storefront "Buy Now" action
+  // routes the customer to affiliateUrl (the exact URL the admin pasted)
+  // instead of the internal checkout.
+  affiliateUrl: {
+    type: String,
+    trim: true,
+  },
+  originalAffiliateUrl: {
+    type: String,
+    trim: true,
+  },
+  sourceUrl: {
+    type: String,
+    trim: true,
+  },
+  canonicalUrl: {
+    type: String,
+    trim: true,
+  },
+  platform: {
+    type: String,
+    trim: true,
+  },
+  importMetadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+
   salesCount: {
     type: Number,
     default: 0,

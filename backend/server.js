@@ -175,6 +175,12 @@ app.use("/api/categories", require("./routes/categories"));
 // Newsletter (public subscribe + admin list)
 app.use("/api/newsletter", require("./routes/newsletter"));
 
+// Product import (admin only)
+app.use("/api/import", require("./routes/import"));
+
+// Image proxy
+app.use("/api/image-proxy", require("./routes/imageProxy"));
+
 // Reseller programme. The admin router is mounted on /api/admin *before* the
 // legacy admin routes so its more specific paths win.
 app.use("/api/reseller", require("./routes/reseller"));
