@@ -63,13 +63,9 @@ const ReturnRequest = lazy(() => import("./pages/ReturnRequest"));
 const Account = lazy(() => import("./pages/Account"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-/* Public affiliate redirect (resolves and forwards to the external product). */
-const AffiliateRedirect = lazy(() => import("./pages/AffiliateRedirect"));
-
 /* Admin — an entirely separate bundle from the storefront */
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AddProduct = lazy(() => import("./pages/admin/AddProduct"));
-const ImportProduct = lazy(() => import("./pages/admin/ImportProduct"));
 const EditProduct = lazy(() => import("./pages/admin/EditProduct"));
 const AllProducts = lazy(() => import("./pages/admin/AllProducts"));
 const AllOrders = lazy(() => import("./pages/admin/AllOrders"));
@@ -86,10 +82,6 @@ const ManageTrending = lazy(() => import("./pages/admin/ManageTrending"));
 const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
 const AdminNotifications = lazy(
   () => import("./pages/admin/AdminNotifications"),
-);
-const AffiliateProducts = lazy(() => import("./pages/admin/AffiliateProducts"));
-const AffiliateProductEditor = lazy(
-  () => import("./pages/admin/AffiliateProductEditor"),
 );
 
 /** Mobile header titles, keyed by pathname. */
@@ -181,9 +173,6 @@ const AppLayout = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-
-            {/* Resolves an affiliate product to its external destination. */}
-            <Route path="/go/product/:id" element={<AffiliateRedirect />} />
 
             <Route
               path="/cart"
@@ -292,14 +281,6 @@ const AppLayout = () => {
               }
             />
             <Route
-              path="/admin/import-product"
-              element={
-                <AdminRoute>
-                  <ImportProduct />
-                </AdminRoute>
-              }
-            />
-            <Route
               path="/admin/edit-product/:id"
               element={
                 <AdminRoute>
@@ -376,30 +357,6 @@ const AppLayout = () => {
               element={
                 <AdminRoute>
                   <ManageTrending />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/affiliate"
-              element={
-                <AdminRoute>
-                  <AffiliateProducts />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/affiliate/new"
-              element={
-                <AdminRoute>
-                  <AffiliateProductEditor />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/affiliate/:id"
-              element={
-                <AdminRoute>
-                  <AffiliateProductEditor />
                 </AdminRoute>
               }
             />

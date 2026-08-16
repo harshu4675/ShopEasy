@@ -256,12 +256,6 @@ const Dashboard = () => {
       color: "bg-red-500",
       badge: stats.refundRequested,
     },
-    {
-      to: "/admin/affiliate",
-      label: "Affiliate Products",
-      icon: "link",
-      color: "bg-fuchsia-500",
-    },
   ];
 
   return (

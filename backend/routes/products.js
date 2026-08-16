@@ -5,14 +5,7 @@ const cloudinary = require("../config/cloudinary");
 const Product = require("../models/Product");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
-const affiliateService = require("../services/affiliateService");
-const { ImportError } = require("../services/affiliate/errors");
 const { deleteProduct } = require("../services/productDeletion");
-const {
-  inferSourcePlatform,
-  isSafeWebUrl,
-  withCanonicalOrigin,
-} = require("../utils/productOrigin");
 
 // Configure multer to use memory storage instead of disk
 const storage = multer.memoryStorage();
@@ -51,18 +44,6 @@ const uploadToCloudinary = (fileBuffer) => {
   });
 };
 
-function publicProduct(product) {
-  const normalized = withCanonicalOrigin(product);
-  // Destinations are resolved through /affiliate-url so listing/detail payloads
-  // expose affiliate identity without leaking or bypassing the controlled URL.
-  delete normalized.affiliateUrl;
-  delete normalized.originalUrl;
-  delete normalized.sourceUrl;
-  delete normalized.canonicalUrl;
-  delete normalized.importMetadata;
-  return normalized;
-}
-
 function parseJsonField(value, field, fallback) {
   if (value === undefined || value === null || value === "") return fallback;
   if (typeof value === "object") return value;
@@ -91,11 +72,9 @@ router.get("/", async (req, res) => {
     } = req.query;
     let query = {};
 
-    // Only published products are visible on the storefront. Affiliate
-    // imports stay `draft` until an admin publishes them, and unpublished
-    // products are hidden without being deleted. Products created before this
-    // field existed have no value in the database, so `$nin` (rather than an
-    // equality match) keeps them visible too.
+    // Defensive visibility guard: any legacy `draft`/`unpublished` records
+    // that predate the store's own catalogue stay hidden. Store products are
+    // unaffected because they never carry those statuses.
     query.status = { $nin: ["draft", "unpublished"] };
 
     if (category) query.category = category;
@@ -137,44 +116,12 @@ router.get("/", async (req, res) => {
       // Only the fields the product grid renders. Dropping `description` alone
       // cuts the payload substantially on a 40-item response.
       .select(
-        "name price originalPrice discount category subCategory brand images rating numReviews stock sizes colors isTrending salesCount createdAt productType status sourcePlatform affiliateUrl originalUrl sourceUrl platform",
+        "name price originalPrice discount category subCategory brand images rating numReviews stock sizes colors isTrending salesCount createdAt",
       )
       .lean();
 
-    res.json(result.map(publicProduct));
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-/**
- * GET /api/products/:id/affiliate-url
- * Public resolution of an affiliate product's destination. Returns the URL
- * only when the product is a published affiliate product and its persisted
- * destination uses a safe HTTP(S) scheme.
- */
-router.get("/:id/affiliate-url", async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id)
-      .select(
-        "name productType status affiliateUrl originalUrl sourceUrl sourcePlatform platform",
-      )
-      .lean();
-    const normalized = withCanonicalOrigin(product);
-    const url = affiliateService.resolveAffiliateUrl(normalized);
-    res.json({
-      url,
-      platform: normalized.sourcePlatform,
-      name: normalized.name,
-    });
-  } catch (error) {
-    if (error instanceof ImportError) {
-      return res.status(error.httpStatus || 400).json({
-        success: false,
-        code: error.code,
-        message: error.message,
-      });
-    }
     res.status(500).json({ message: error.message });
   }
 });
@@ -189,7 +136,7 @@ router.get("/:id", async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    res.json(publicProduct(product));
+    res.json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -208,26 +155,7 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
       subCategory,
       brand,
       stock,
-      affiliateUrl: requestedAffiliateUrl,
-      imageUrls: requestedImageUrls,
     } = req.body;
-
-    const affiliateUrl = String(requestedAffiliateUrl || "").trim();
-    const requestedType = String(req.body.productType || "")
-      .trim()
-      .toUpperCase();
-    if (requestedType && !["INTERNAL", "AFFILIATE"].includes(requestedType)) {
-      return res.status(400).json({ message: "Invalid product type" });
-    }
-    // Compatibility: the original Add Product importer sent affiliateUrl but
-    // not productType. New clients send both explicitly.
-    const productType =
-      requestedType || (affiliateUrl ? "AFFILIATE" : "INTERNAL");
-    if (productType === "AFFILIATE" && !isSafeWebUrl(affiliateUrl)) {
-      return res.status(400).json({
-        message: "Affiliate products require a valid http(s) destination",
-      });
-    }
 
     let productImages = [];
     if (req.files?.length) {
@@ -235,17 +163,6 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
         req.files.map((file) => uploadToCloudinary(file.buffer)),
       );
     }
-
-    const parsedImageUrls = parseJsonField(
-      requestedImageUrls,
-      "imported image URLs",
-      [],
-    );
-    if (!Array.isArray(parsedImageUrls)) {
-      return res.status(400).json({ message: "Invalid imported image URLs" });
-    }
-    const importedImageUrls = parsedImageUrls.filter(isSafeWebUrl).slice(0, 5);
-    if (!productImages.length) productImages = importedImageUrls;
     if (!productImages.length) {
       return res.status(400).json({
         message: "At least one product image is required",
@@ -255,11 +172,6 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
     const sizes = parseJsonField(req.body.sizes, "sizes", []);
     const colors = parseJsonField(req.body.colors, "colors", []);
     const tags = parseJsonField(req.body.tags, "tags", []);
-    const importMetadata = parseJsonField(
-      req.body.importMetadata,
-      "import metadata",
-      undefined,
-    );
     if (
       !Array.isArray(sizes) ||
       !Array.isArray(colors) ||
@@ -267,34 +179,6 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
     ) {
       return res.status(400).json({ message: "Invalid product options" });
     }
-    if (
-      importMetadata !== undefined &&
-      (!importMetadata ||
-        Array.isArray(importMetadata) ||
-        typeof importMetadata !== "object")
-    ) {
-      return res.status(400).json({ message: "Invalid import metadata" });
-    }
-
-    const sourcePlatform =
-      productType === "AFFILIATE"
-        ? String(
-            req.body.sourcePlatform ||
-              req.body.platform ||
-              inferSourcePlatform(affiliateUrl),
-          )
-            .trim()
-            .toLowerCase()
-        : "";
-    const originalUrl =
-      productType === "AFFILIATE"
-        ? String(
-            req.body.originalUrl ||
-              req.body.canonicalUrl ||
-              req.body.sourceUrl ||
-              affiliateUrl,
-          ).trim()
-        : "";
 
     const product = await Product.create({
       name,
@@ -310,23 +194,9 @@ router.post("/", auth, admin, upload.array("images", 5), async (req, res) => {
       stock,
       images: productImages,
       tags,
-      productType,
-      affiliateUrl: productType === "AFFILIATE" ? affiliateUrl : "",
-      sourcePlatform,
-      externalProductId:
-        req.body.externalProductId || req.body.productId || req.body.asin || "",
-      originalUrl,
-      // Keep populated legacy fields so older admin screens remain editable.
-      sourceUrl:
-        productType === "AFFILIATE" ? req.body.sourceUrl || originalUrl : "",
-      canonicalUrl:
-        productType === "AFFILIATE" ? req.body.canonicalUrl || originalUrl : "",
-      platform: sourcePlatform,
-      importMetadata,
-      importedAt: productType === "AFFILIATE" ? new Date() : undefined,
     });
 
-    res.status(201).json(withCanonicalOrigin(product.toObject()));
+    res.status(201).json(product);
   } catch (error) {
     console.error("Error creating product:", error);
     res.status(error.statusCode || 500).json({ message: error.message });

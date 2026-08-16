@@ -261,7 +261,6 @@ const AdminLayout = ({ children }) => {
 
   const secondaryNav = [
     { to: "/admin/add-product", icon: "add_circle", label: "Add Product" },
-    { to: "/admin/import-product", icon: "download", label: "Import Product" },
     { to: "/admin/categories", icon: "category", label: "Categories" },
     { to: "/admin/banners", icon: "view_carousel", label: "Banners" },
     { to: "/admin/trending", icon: "trending_up", label: "Trending" },
@@ -269,11 +268,6 @@ const AdminLayout = ({ children }) => {
     { to: "/admin/coupons", icon: "local_offer", label: "Coupons" },
     { to: "/admin/reviews", icon: "star", label: "Reviews" },
     { to: "/admin/refunds", icon: "credit_card", label: "Refunds" },
-    {
-      to: "/admin/affiliate",
-      icon: "link",
-      label: "Affiliate Products",
-    },
     {
       to: "/admin/notifications",
       icon: "notifications",

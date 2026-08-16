@@ -382,21 +382,6 @@ export const newsletterAPI = {
   unsubscribe: (email) => api.post("/newsletter/unsubscribe", { email }),
 };
 
-/* ------------------------------------------------------------------ *
- * Affiliate product import (admin) + public redirect resolution
- * ------------------------------------------------------------------ */
-export const affiliateAPI = {
-  list: (params) => api.get("/admin/affiliate", { params }),
-  getOne: (id) => api.get(`/admin/affiliate/${id}`),
-  import: (url) => api.post("/admin/affiliate/import", { url }),
-  reimport: (id) => api.post(`/admin/affiliate/${id}/reimport`),
-  update: (id, data) => api.put(`/admin/affiliate/${id}`, data),
-  publish: (id) => api.patch(`/admin/affiliate/${id}/publish`),
-  unpublish: (id) => api.patch(`/admin/affiliate/${id}/unpublish`),
-  remove: (id) => api.delete(`/admin/affiliate/${id}`),
-  resolveUrl: (id) => api.get(`/products/${id}/affiliate-url`),
-};
-
 export const getErrorMessage = (error) => {
   if (error.response?.data?.message) {
     return error.response.data.message;

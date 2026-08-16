@@ -64,13 +64,6 @@ const AllProducts = () => {
             </span>
             <span>Add Product</span>
           </Link>
-          <Link
-            to="/admin/import-product"
-            className="inline-flex items-center justify-center gap-2 py-3.5 px-7 border-none rounded-md cursor-pointer font-[inherit] text-[15px] font-semibold transition-all duration-300 ease-custom whitespace-nowrap bg-gradient-primary text-white shadow-primary hover:-translate-y-0.5 hover:shadow-primary-hover max-md:hidden"
-          >
-            <span><span style={matIcon}>download</span></span>
-            <span>Import</span>
-          </Link>
         </div>
 
         {/* Search */}
@@ -138,11 +131,6 @@ const AllProducts = () => {
                           <p className="text-[13px] text-gray-500 m-0">
                             {product.brand}
                           </p>
-                          {product.productType === "AFFILIATE" && (
-                            <span className="mt-1 inline-block rounded-[4px] bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                              Affiliate
-                            </span>
-                          )}
                         </div>
                       </td>
                       <td className="py-4 px-5 border-b border-gray-200 text-sm">
@@ -321,15 +309,6 @@ const AllProducts = () => {
 
         {/* Mobile FABs */}
         <div className="fixed bottom-20 right-5 z-[1000] flex gap-3 md:hidden">
-          <Link
-            to="/admin/import-product"
-            className="w-14 h-14 rounded-full bg-[#be185d] text-white border-none shadow-[0_4px_12px_rgba(0,0,0,0.3)] flex items-center justify-center text-2xl cursor-pointer transition-all duration-200 no-underline hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
-            title="Import Product"
-          >
-            <span style={matIcon} className="align-middle text-[16px]">
-              download
-            </span>
-          </Link>
           <Link
             to="/admin/add-product"
             className="w-14 h-14 rounded-full bg-primary text-white border-none shadow-[0_4px_12px_rgba(0,0,0,0.3)] flex items-center justify-center text-2xl cursor-pointer transition-all duration-200 no-underline hover:scale-110 hover:shadow-[0_6px_20px_rgba(0,0,0,0.4)]"

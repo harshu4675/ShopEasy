@@ -40,14 +40,6 @@ const product = (i) => ({
 });
 
 const PRODUCTS = Array.from({ length: 12 }, (_, i) => product(i));
-PRODUCTS[5] = {
-  ...PRODUCTS[5],
-  _id: "p-affiliate",
-  name: "Amazon Partner Product",
-  productType: "AFFILIATE",
-  isAffiliate: true,
-  sourcePlatform: "amazon",
-};
 
 const USER = {
   _id: "u1",
@@ -81,18 +73,7 @@ const ROUTE_TABLE = [
   [/\/auth\/me$/, () => ({ success: true, data: { user: USER } })],
 
   // Storefront.
-  [
-    /\/products\/[^/]+\/affiliate-url$/,
-    () => ({
-      url: "https://www.amazon.in/dp/TESTASIN?tag=test-21",
-      platform: "Amazon",
-    }),
-  ],
-  [
-    /\/products\/[^/]+$/,
-    (requestPath) =>
-      requestPath.endsWith("/p-affiliate") ? PRODUCTS[5] : PRODUCTS[0],
-  ],
+  [/\/products\/[^/]+$/, () => PRODUCTS[0]],
   [/\/products$/, () => PRODUCTS],
   [
     /\/banners\/active$/,
@@ -145,7 +126,6 @@ const ROUTE_TABLE = [
       lowStockProducts: [],
     }),
   ],
-  [/\/admin\/affiliate$/, () => paginated([])],
   [/^\/api\/admin/, () => paginated([])],
 ];
 
@@ -161,7 +141,6 @@ const ROUTES = process.argv[2]
       "/",
       "/products",
       "/product/p0",
-      "/product/p-affiliate",
       "/categories",
       "/cart",
       "/checkout",
@@ -172,12 +151,8 @@ const ROUTES = process.argv[2]
       "/my-orders",
       "/coupons",
       "/contact",
-      "/go/product/p0",
       "/admin/dashboard",
       "/admin/products",
-      "/admin/import-product",
-      "/admin/affiliate",
-      "/admin/affiliate/new",
       "/route-that-does-not-exist",
     ];
 
@@ -186,13 +161,8 @@ const EXPECT = {
   "/": /Test Product/,
   "/products": /Test Product/,
   "/product/p0": /Test Product 0/,
-  "/product/p-affiliate": /Buy on Amazon/,
   "/cart": /Test Product|cart/i,
-  "/go/product/p0": /Continue|Redirect/i,
-  "/admin/dashboard": /Resellers|Affiliate/,
-  "/admin/import-product": /Import Product from URL/,
-  "/admin/affiliate": /Affiliate/,
-  "/admin/affiliate/new": /URL|url/i,
+  "/admin/dashboard": /Welcome to TalishClothes|Dashboard/i,
   "/route-that-does-not-exist": /Page Not Found/i,
 };
 
@@ -352,14 +322,8 @@ const renderRoute = async (route, desktop = false) => {
   const html = root.innerHTML;
   const expect = EXPECT[route];
   let rendered = expect ? expect.test(html) : root.children.length > 0;
-  if (route === "/" || route === "/products") {
-    const hasAffiliateAction = /Buy on Amazon/.test(html);
-    rendered = rendered && hasAffiliateAction;
-    if (!hasAffiliateAction) errors.push("BEHAVIOR affiliate CTA missing");
-  }
   if (route === "/products") {
-    // The full listing uses ProductCard: manual items retain their cart action
-    // while the imported item bypasses cart in favor of its platform action.
+    // The full listing uses ProductCard: every product keeps its cart action.
     const hasManualCartAction = /Already in Cart|Add to Cart/.test(html);
     rendered = rendered && hasManualCartAction;
     if (!hasManualCartAction)
@@ -373,7 +337,6 @@ const renderRoute = async (route, desktop = false) => {
 const RESPONSIVE_ROUTES = new Set([
   "/",
   "/product/p0",
-  "/product/p-affiliate",
   "/cart",
   "/checkout",
 ]);

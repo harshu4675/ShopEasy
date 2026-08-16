@@ -1,5 +1,5 @@
 import React, { memo, useContext, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useCartActions } from "../context/CartContext";
 import { useWishlistActions } from "../context/WishlistContext";
@@ -10,13 +10,7 @@ import SmartImage from "./SmartImage";
 import { matIcon } from "../utils/fonts";
 
 const ProductCard = ({ product }) => {
-  const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const isAffiliate = product.productType === "AFFILIATE";
-  const sourcePlatform = String(product.sourcePlatform || "").toLowerCase();
-  const platformLabel = sourcePlatform && sourcePlatform !== "unknown"
-    ? sourcePlatform.charAt(0).toUpperCase() + sourcePlatform.slice(1)
-    : "Platform";
   // Action-only contexts: these values never change, so a cart or wishlist
   // count update elsewhere on the page cannot re-render this card.
   const { refreshCart } = useCartActions();
@@ -113,15 +107,6 @@ const ProductCard = ({ product }) => {
     ],
   );
 
-  const openPlatform = useCallback(
-    (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      navigate(`/go/product/${encodeURIComponent(product._id)}`);
-    },
-    [navigate, product._id],
-  );
-
   const discountPercent = product.originalPrice
     ? Math.round(
         ((product.originalPrice - product.price) / product.originalPrice) * 100,
@@ -153,20 +138,6 @@ const ProductCard = ({ product }) => {
           }}
         >
           NEW
-        </span>
-      )}
-
-      {isAffiliate && (
-        <span
-          className="absolute right-[10px] top-[10px] z-10 flex items-center gap-1 rounded-[6px] px-[10px] py-1 text-[10px] font-bold tracking-[0.3px] text-white shadow-[0_2px_8px_rgba(99,102,241,0.4)] max-md:right-2 max-md:top-2 max-md:px-[7px] max-md:py-[3px] max-md:text-[9px] max-[480px]:rounded-[4px] max-[480px]:px-[6px] max-[480px]:py-[2px] max-[480px]:text-[8px]"
-          style={{
-            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-          }}
-        >
-          <span style={matIcon} className="text-[12px]">
-            link
-          </span>
-          Affiliate
         </span>
       )}
 
@@ -220,7 +191,6 @@ const ProductCard = ({ product }) => {
             )}
           </button>
 
-          {!isAffiliate && (
           <button
             onClick={addToCart}
             disabled={loading.cart || inCart}
@@ -265,7 +235,6 @@ const ProductCard = ({ product }) => {
               </span>
             )}
           </button>
-          )}
         </div>
       </div>
 
@@ -337,21 +306,7 @@ const ProductCard = ({ product }) => {
           )}
         </div>
 
-        {isAffiliate && (
-          <button
-            type="button"
-            onClick={openPlatform}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 max-[480px]:mt-2 max-[480px]:px-2 max-[480px]:py-1.5 max-[480px]:text-[10px]"
-            aria-label={`Buy ${product.name} on ${platformLabel}`}
-          >
-            Buy on {platformLabel}
-            <span style={matIcon} className="text-[15px]" aria-hidden="true">
-              open_in_new
-            </span>
-          </button>
-        )}
-
-        {!isAffiliate && product.stock === 0 && (
+        {product.stock === 0 && (
           <div
             className="mt-2 rounded-[6px] px-[10px] py-[6px] text-center text-[10px] font-bold uppercase tracking-[0.5px] text-[#dc2626] max-[480px]:mt-[6px] max-[480px]:rounded-[4px] max-[480px]:text-[9px]"
             style={{

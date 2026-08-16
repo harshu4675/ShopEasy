@@ -31,7 +31,8 @@ router.get("/sitemap.xml", async (req, res) => {
       smStream.write(page);
     });
 
-    // Get all published products (affiliate drafts stay out of the sitemap).
+    // Get all published products (any legacy draft/unpublished records stay
+    // out of the sitemap).
     const products = await Product.find({
       status: { $nin: ["draft", "unpublished"] },
     }).select("_id updatedAt");
