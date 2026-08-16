@@ -183,11 +183,20 @@
   }
 }
 
-/* Honour the OS reduced-motion setting across the whole app. */
+/*
+ * Honour the OS reduced-motion setting for decorative animation, but keep
+ * functional loading indicators animating.
+ *
+ * Loading spinners are feedback, not decoration: a loader whose ring is frozen
+ * at 0deg reads as "broken", not "loading". The Loader and RouteFallback both
+ * carry `role="status"`, so this selector leaves them (and their children)
+ * out of the reduced-motion freeze. Skeleton pulses, banner auto-rotation and
+ * other decorative motion still stop for users who asked for it.
+ */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *:not([role="status"], [role="status"] *),
+  *:not([role="status"], [role="status"] *)::before,
+  *:not([role="status"], [role="status"] *)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

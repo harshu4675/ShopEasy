@@ -339,12 +339,6 @@ const MobileProductDetails = () => {
 
   const displayedReviews = showAllReviews ? reviews : reviews.slice(0, 3);
 
-  const isAffiliate = product.productType === "AFFILIATE";
-  const sourcePlatform = String(product.sourcePlatform || "").toLowerCase();
-  const platformName = sourcePlatform && sourcePlatform !== "unknown"
-    ? sourcePlatform.charAt(0).toUpperCase() + sourcePlatform.slice(1)
-    : "Partner Store";
-
   return (
     <div
       className="bg-gray-50 pb-24"
@@ -408,14 +402,6 @@ const MobileProductDetails = () => {
               {product.brand && (
                 <p className="m-0 mb-0.5 text-[10px] font-bold uppercase tracking-widest text-pink-600">
                   {product.brand}
-                </p>
-              )}
-              {isAffiliate && (
-                <p className="m-0 mb-1 inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                  <span style={matIcon} className="text-[12px]">
-                    link
-                  </span>
-                  Affiliate · Sold on {platformName || "partner"}
                 </p>
               )}
               <h1 className="m-0 text-base font-semibold leading-snug text-gray-900">
@@ -490,7 +476,6 @@ const MobileProductDetails = () => {
           </div>
         )}
 
-        {!isAffiliate && (
         <div className="mt-4 flex items-center justify-around rounded-xl border border-pink-100 bg-pink-50/50 py-3">
           {[
             { icon: "assignment_return", title: "7 Days", sub: "Easy Return" },
@@ -510,7 +495,6 @@ const MobileProductDetails = () => {
             </div>
           ))}
         </div>
-        )}
       </div>
 
       {product.sizes?.length > 0 && (
@@ -582,7 +566,6 @@ const MobileProductDetails = () => {
         </div>
       )}
 
-      {!isAffiliate && (
       <div className="mt-2 bg-white p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -698,7 +681,6 @@ const MobileProductDetails = () => {
           </div>
         )}
       </div>
-      )}
 
       {recommended.length > 0 && (
         <div className="mt-2 bg-white p-4">
@@ -778,21 +760,6 @@ const MobileProductDetails = () => {
           paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))",
         }}
       >
-        {isAffiliate ? (
-          <Link
-            to={`/go/product/${product._id}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg border-none py-3 text-sm font-bold text-white no-underline transition-all"
-            style={{
-              background:
-                "linear-gradient(135deg, #831843 0%, #be185d 50%, #ec4899 100%)",
-            }}
-          >
-            <span style={matIcon} className="text-[20px]">
-              open_in_new
-            </span>
-            Buy on {platformName}
-          </Link>
-        ) : (
         <div className="flex gap-2">
           <button
             onClick={addToCart}
@@ -841,7 +808,6 @@ const MobileProductDetails = () => {
             )}
           </button>
         </div>
-        )}
       </div>
 
       <style>{`

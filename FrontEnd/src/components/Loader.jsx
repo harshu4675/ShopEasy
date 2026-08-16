@@ -24,8 +24,22 @@ const Loader = ({ size = "default", fullScreen = false }) => {
         aria-busy="true"
         aria-label="Loading"
         style={{
+          // Explicit overlay geometry so the loader is guaranteed to cover the
+          // viewport and sit above every other layer on any device/breakpoint,
+          // independent of generated utility CSS or media queries.
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: 0,
           background:
             "linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%)",
+          animation: "tc-loader-fade-in 0.3s ease-out",
         }}
       >
         <div className="flex flex-col items-center">
@@ -111,6 +125,10 @@ const Loader = ({ size = "default", fullScreen = false }) => {
           @keyframes tc-rotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+          }
+          @keyframes tc-loader-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
           }
         `}</style>
       </div>

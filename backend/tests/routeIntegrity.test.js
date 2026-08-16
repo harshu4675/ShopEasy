@@ -4,11 +4,9 @@ const assert = require("node:assert/strict");
 const Product = require("../models/Product");
 const Cart = require("../models/Cart");
 const Wishlist = require("../models/Wishlist");
-const Order = require("../models/Order");
 const cloudinary = require("../config/cloudinary");
 const productRouter = require("../routes/products");
 const cartRouter = require("../routes/cart");
-const orderRouter = require("../routes/orders");
 const publicCacheControl = require("../middleware/cacheControl");
 
 function handlerFor(router, path, method) {
@@ -196,21 +194,13 @@ test("delete route removes the database record and a repeat delete stays 404", a
   }
 });
 
-test("cart reads purge legacy affiliate items while preserving manual items", async () => {
+
+test("cart reads purge items whose product was deleted", async () => {
   const originalCartFind = Cart.findOne;
   let saves = 0;
-  const manual = {
-    _id: "manual-1",
-    productType: "INTERNAL",
-    affiliateUrl: "",
-  };
-  const legacyAffiliate = {
-    _id: "affiliate-1",
-    productType: "INTERNAL",
-    affiliateUrl: "https://www.amazon.in/dp/ABC?tag=shop-21",
-  };
+  const present = { _id: "present-1" };
   const cart = {
-    items: [{ product: manual }, { product: legacyAffiliate }],
+    items: [{ product: present }, { product: null }],
     async save() {
       saves += 1;
     },
@@ -222,14 +212,14 @@ test("cart reads purge legacy affiliate items while preserving manual items", as
     await handlerFor(cartRouter, "/", "get")({ user: { _id: "user-1" } }, res);
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.items.length, 1);
-    assert.equal(res.body.items[0].product._id, "manual-1");
+    assert.equal(res.body.items[0].product._id, "present-1");
     assert.equal(saves, 1);
   } finally {
     Cart.findOne = originalCartFind;
   }
 });
 
-test("cart accepts manual products and rejects persisted affiliate products", async () => {
+test("cart add stores a manual product and returns the updated cart", async () => {
   const originalProductFind = Product.findById;
   const originalCartFind = Cart.findOne;
   const originalCartCreate = Cart.create;
@@ -237,29 +227,6 @@ test("cart accepts manual products and rejects persisted affiliate products", as
   let cartLookups = 0;
 
   try {
-    Product.findById = async () => ({
-      _id: "affiliate-1",
-      productType: "INTERNAL",
-      affiliateUrl: "https://www.amazon.in/dp/ABC?tag=shop-21",
-      stock: 20,
-    });
-    Cart.findOne = () => {
-      cartLookups += 1;
-      return populatedQuery(null);
-    };
-
-    const affiliateResponse = response();
-    await addHandler(
-      {
-        body: { productId: "affiliate-1", quantity: 1 },
-        user: { _id: "user-1" },
-      },
-      affiliateResponse,
-    );
-    assert.equal(affiliateResponse.statusCode, 400);
-    assert.match(affiliateResponse.body.message, /partner/i);
-    assert.equal(cartLookups, 0);
-
     let saves = 0;
     const manualCart = {
       items: [],
@@ -269,8 +236,6 @@ test("cart accepts manual products and rejects persisted affiliate products", as
     };
     Product.findById = async () => ({
       _id: "manual-1",
-      productType: "INTERNAL",
-      affiliateUrl: "",
       stock: 20,
     });
     Cart.findOne = () => {
@@ -300,52 +265,5 @@ test("cart accepts manual products and rejects persisted affiliate products", as
     Product.findById = originalProductFind;
     Cart.findOne = originalCartFind;
     Cart.create = originalCartCreate;
-  }
-});
-
-test("order creation rejects an affiliate item before creating an order", async () => {
-  const originalCartFind = Cart.findOne;
-  const originalOrderCreate = Order.create;
-  let creates = 0;
-
-  Cart.findOne = () =>
-    populatedQuery({
-      items: [
-        {
-          product: {
-            _id: "affiliate-1",
-            productType: "AFFILIATE",
-            affiliateUrl: "https://www.meesho.com/item/p/abc",
-            stock: 10,
-          },
-          quantity: 1,
-        },
-      ],
-      appliedCoupon: null,
-    });
-  Order.create = async () => {
-    creates += 1;
-    return {};
-  };
-
-  try {
-    const res = response();
-    await handlerFor(
-      orderRouter,
-      "/",
-      "post",
-    )(
-      {
-        body: { shippingAddress: {}, paymentMethod: "COD" },
-        user: { _id: "user-1" },
-      },
-      res,
-    );
-    assert.equal(res.statusCode, 400);
-    assert.match(res.body.message, /Partner products cannot be checked out/i);
-    assert.equal(creates, 0);
-  } finally {
-    Cart.findOne = originalCartFind;
-    Order.create = originalOrderCreate;
   }
 });
