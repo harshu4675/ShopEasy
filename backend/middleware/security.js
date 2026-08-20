@@ -71,7 +71,16 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: "Too many requests. Please slow down." },
   // Health checks and preflights shouldn't burn quota.
-  skip: (req) => req.method === "OPTIONS" || req.path === "/api/health",
+  //
+  // This limiter is mounted with `app.use("/api", apiLimiter)`, and Express
+  // strips the mount path from `req.path` inside a mounted handler, so
+  // `req.path` here is "/health", never "/api/health" — the old comparison
+  // could never match and health checks were consuming rate-limit quota.
+  // `req.originalUrl` keeps the full path regardless of mount depth; the query
+  // string is trimmed so "/api/health?x=1" still matches.
+  skip: (req) =>
+    req.method === "OPTIONS" ||
+    req.originalUrl.split("?")[0].replace(/\/+$/, "") === "/api/health",
 });
 
 /**

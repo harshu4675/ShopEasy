@@ -9,7 +9,9 @@ router.get("/sitemap.xml", async (req, res) => {
   try {
     // Base URL of your frontend
     const hostname =
-      process.env.FRONTEND_URL || "https://shopeasy-fashionstore.netlify.app";
+      process.env.FRONTEND_URL ||
+    process.env.WEBSITE_URL ||
+    "https://talishclothes.netlify.app";
 
     // Create sitemap stream
     const smStream = new SitemapStream({ hostname });
@@ -92,7 +94,9 @@ router.get("/sitemap.xml", async (req, res) => {
 // Robots.txt
 router.get("/robots.txt", (req, res) => {
   const hostname =
-    process.env.FRONTEND_URL || "https://shopeasy-fashionstore.netlify.app";
+    process.env.FRONTEND_URL ||
+    process.env.WEBSITE_URL ||
+    "https://talishclothes.netlify.app";
   const backendUrl =
     process.env.BACKEND_URL || "https://your-backend.railway.app";
 

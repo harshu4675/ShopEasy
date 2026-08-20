@@ -54,50 +54,97 @@ app.use(
   }),
 );
 
-const allowedOrigins = [
+// Origins allowed to make credentialed browser requests.
+//
+// The apex/www custom domain used to be missing here, so it fell through to the
+// blocked branch. Extra hosts can be added per-environment via CORS_ORIGINS
+// (comma separated) without a code change.
+const staticOrigins = [
   "https://talishclothes.netlify.app",
+  "https://talishclothes.com",
+  "https://www.talishclothes.com",
   "http://localhost:5000",
   "http://localhost:3000",
   "http://127.0.0.1:5000",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
   "http://localhost:5173",
-  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
+const envOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  process.env.WEBSITE_URL,
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : []),
+]
+  .map((o) => (o || "").trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
-      if (allowedOrigins.indexOf(origin) !== -1) {
-        return callback(null, true);
-      }
+const allowedOrigins = [...new Set([...staticOrigins, ...envOrigins])];
 
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(`CORS: allowing ${origin} in dev mode`);
-        return callback(null, true);
-      }
+// Netlify builds every PR at https://deploy-preview-<n>--<site>.netlify.app and
+// every branch at https://<branch>--<site>.netlify.app. Those hostnames cannot
+// be enumerated ahead of time, so they are matched by pattern rather than being
+// left to fall through to the blocked branch.
+const allowedOriginPatterns = [
+  /^https:\/\/[a-z0-9][a-z0-9-]*--talishclothes\.netlify\.app$/i,
+];
 
-      console.error(`CORS: blocked ${origin}`);
-      return callback(null, false);
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "Origin",
-    ],
-    exposedHeaders: ["set-cookie"],
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  }),
-);
+const isOriginAllowed = (origin) =>
+  allowedOrigins.includes(origin.replace(/\/+$/, "")) ||
+  allowedOriginPatterns.some((re) => re.test(origin));
 
-app.options("*", cors());
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`CORS: allowing ${origin} in dev mode`);
+      return callback(null, true);
+    }
+
+    // `callback(null, false)` makes the cors package answer *without* any
+    // Access-Control-Allow-Origin header, which the browser reports as an
+    // opaque generic CORS failure. Failing loudly instead gives a diagnosable
+    // error and still sends no ACAO header, so the request stays blocked.
+    console.error(`CORS: blocked ${origin}`);
+    const err = new Error(`Origin ${origin} is not allowed by CORS`);
+    err.statusCode = 403;
+    err.code = "CORS_ORIGIN_DENIED";
+    return callback(err);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
+  exposedHeaders: ["set-cookie"],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+// NOTE: this used to be `app.options("*", cors())`. Calling `cors()` with no
+// options applies the package default `origin: "*"`, so every preflight was
+// answered with `Access-Control-Allow-Origin: *` and no
+// `Access-Control-Allow-Credentials`, regardless of the allowlist above.
+// Browsers reject a credentialed (withCredentials) request whose preflight
+// answers `*`, so requests from any origin other than the few that happened to
+// be listed failed in production while same-origin dev never preflighted at
+// all. The preflight must run through the very same options as the main
+// middleware.
+app.options("*", cors(corsOptions));
 
 /* -------------------------------------------------------------------------- *
  * Body parsing & input hardening

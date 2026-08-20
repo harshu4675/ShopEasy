@@ -2,12 +2,28 @@ const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
 const razorpayInstance = require("../config/razorpay");
+const { isRazorpayConfigured } = require("../config/razorpay");
 
 // Change this line:
 const auth = require("../middleware/auth"); // No curly braces, use 'auth' not 'protect'
 
+// Payment credentials are optional at boot (see config/razorpay.js). When they
+// are absent only the payment endpoints are disabled, with an explicit 503,
+// instead of the whole API failing to start.
+const requireRazorpay = (req, res, next) => {
+  if (!isRazorpayConfigured || !razorpayInstance) {
+    return res.status(503).json({
+      success: false,
+      code: "PAYMENTS_UNAVAILABLE",
+      message:
+        "Online payments are temporarily unavailable. Please try again later or choose Cash on Delivery.",
+    });
+  }
+  next();
+};
+
 // Create Razorpay Order
-router.post("/create-order", auth, async (req, res) => {
+router.post("/create-order", auth, requireRazorpay, async (req, res) => {
   // Use 'auth' here
   try {
     const { amount, currency = "INR" } = req.body;
@@ -37,7 +53,7 @@ router.post("/create-order", auth, async (req, res) => {
 });
 
 // Verify Payment Signature
-router.post("/verify-payment", auth, async (req, res) => {
+router.post("/verify-payment", auth, requireRazorpay, async (req, res) => {
   // Use 'auth' here
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =

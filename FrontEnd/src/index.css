@@ -5,6 +5,18 @@
  */
 @import "tailwindcss";
 
+/*
+ * Tailwind v4 does NOT auto-discover `tailwind.config.js` the way v3 did — it
+ * expects CSS-first configuration and silently ignores a JS config unless it is
+ * pointed at explicitly. This project still keeps its design tokens (the
+ * primary/success/error palette, the custom keyframes and the `custom` easing)
+ * in `tailwind.config.js`, so without this directive every utility derived from
+ * them — text-primary, bg-primary, bg-success, text-dark, animate-fadeIn,
+ * animate-slideUp, ... — was dropped from the compiled stylesheet and those
+ * elements rendered unstyled.
+ */
+@config "../tailwind.config.js";
+
 @layer base {
   * {
     margin: 0;

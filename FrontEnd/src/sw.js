@@ -1,5 +1,5 @@
 self.__WB_DISABLE_DEV_LOGS = true;
-import { precacheAndRoute } from "workbox-precaching";
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
 import {
   StaleWhileRevalidate,
@@ -9,6 +9,16 @@ import {
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
+/*
+ * Delete precaches written by previous versions of this service worker before
+ * installing the new one. Without this the old revisions are kept forever, so a
+ * returning visitor can be served a previous build's index.html whose hashed
+ * asset URLs no longer exist on the server. Those requests then fall through
+ * the SPA rewrite to index.html (200, text/html), the browser refuses the bad
+ * module MIME type and the lazy route import rejects - the blank-page failure
+ * this app hit in production.
+ */
+cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST || []);
 
 /*
@@ -100,7 +110,40 @@ const navigationHandler = new NetworkFirst({
   networkTimeoutSeconds: 3,
   plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
 });
-registerRoute(new NavigationRoute(navigationHandler));
+registerRoute(
+  new NavigationRoute(navigationHandler, {
+    // Only real page navigations may fall back to a cached HTML document.
+    // Hashed build assets and API calls must never be answered with
+    // index.html: doing so hands the browser HTML where it expects JavaScript
+    // or JSON, which surfaces as a module MIME-type error and a blank screen
+    // instead of an honest 404.
+    denylist: [/^\/api\//, /^\/assets\//, /^\/sw\.js$/, /^\/registerSW\.js$/],
+  }),
+);
+
+/*
+ * A hashed asset that is missing from both the cache and the server means this
+ * client is running a stale build. The SPA rewrite would answer index.html with
+ * a 200, so the failure has to be converted back into a real error here; the
+ * app's ErrorBoundary detects it and offers a cache-clearing reload.
+ */
+registerRoute(
+  ({ url, request }) =>
+    url.origin === self.location.origin &&
+    url.pathname.startsWith("/assets/") &&
+    (request.destination === "script" || request.destination === "style"),
+  async ({ request }) => {
+    const response = await fetch(request);
+    const type = response.headers.get("content-type") || "";
+    if (response.ok && type.includes("text/html")) {
+      return new Response("", {
+        status: 404,
+        statusText: "Stale asset - client build is out of date",
+      });
+    }
+    return response;
+  },
+);
 
 self.addEventListener("push", (event) => {
   if (!event.data) return;
